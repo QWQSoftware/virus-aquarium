@@ -1,4 +1,4 @@
-
+class_name MeshSampler
 
 # Mesh surface sampling utilities
 # Usage:
@@ -60,15 +60,15 @@ static func sample_mesh_surface(mesh_instance: MeshInstance3D, samples_per_unit:
 		var na_w = null
 		var nb_w = null
 		var nc_w = null
-		# To correctly transform normals under non-uniform scale, use the inverse-transpose of the model basis
-		var model_basis = mesh_instance.global_transform.basis
-		var normal_basis = model_basis.inverse().transposed()
 		if tri.has("na") and tri.na != null:
-			na_w = (normal_basis * tri.na).normalized()
+			var normal_mat = mesh_instance.global_transform.basis.inverse().transposed()
+			na_w = (normal_mat * tri.na).normalized()
 		if tri.has("nb") and tri.nb != null:
-			nb_w = (normal_basis * tri.nb).normalized()
+			var normal_mat = mesh_instance.global_transform.basis.inverse().transposed()
+			nb_w = (normal_mat * tri.nb).normalized()
 		if tri.has("nc") and tri.nc != null:
-			nc_w = (normal_basis * tri.nc).normalized()
+			var normal_mat = mesh_instance.global_transform.basis.inverse().transposed()
+			nc_w = (normal_mat * tri.nc).normalized()
 		world_tris.append({"a": a_w, "b": b_w, "c": c_w, "na": na_w, "nb": nb_w, "nc": nc_w})
 
 	var results := []

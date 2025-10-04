@@ -10,10 +10,10 @@
 
 - 修改：`game/game.gd`
   - 实现/改进：
-    - `fill_multimesh_from_mediums(samples_per_unit: float = 1.0, total_samples: int = 0, _instance_scale = 0.1)`：遍历 `mediums` 中的 `MeshInstance3D`，把 `MeshSampler` 的采样点写入 `multiMeshInstance.multimesh`。
-    - 为每个实例设置随机颜色（优先使用 `set_instance_color`，回退为 `set_instance_custom_data` 存 Vector4）。
-    - 把原来的内嵌 `Creature` 类移除，改为通过 `CreatureScript`（`res://game/creature.gd`）实例化并加入运行时 `creatures` 列表（示例创建）。
-    - 保留并使用 `MeshSampler`（类名导出的全局类）作为采样实现。
+	- `fill_multimesh_from_mediums(samples_per_unit: float = 1.0, total_samples: int = 0, _instance_scale = 0.1)`：遍历 `mediums` 中的 `MeshInstance3D`，把 `MeshSampler` 的采样点写入 `multiMeshInstance.multimesh`。
+	- 为每个实例设置随机颜色（优先使用 `set_instance_color`，回退为 `set_instance_custom_data` 存 Vector4）。
+	- 把原来的内嵌 `Creature` 类移除，改为通过 `CreatureScript`（`res://game/creature.gd`）实例化并加入运行时 `creatures` 列表（示例创建）。
+	- 保留并使用 `MeshSampler`（类名导出的全局类）作为采样实现。
 
 - 新建：`game/creature.gd`（class_name Creature）
   - 抽出数据驱动的生物实现（基因解码、状态、update、行为决策框架与空行为函数）。
@@ -76,11 +76,11 @@
 
 - 编辑：`game/game.gd`
   - 添加/完善：
-    - `fill_multimesh_from_mediums(samples_per_unit: float = 1.0, total_samples: int = 0, instance_scale = 0.1)`
-      - 遍历 `mediums` 中的 `MeshInstance3D`，用采样点填充 `multiMeshInstance.multimesh`。
-      - 支持每实例非等比缩放：`instance_scale` 可为 float、Vector3 或 Array（按索引循环）。
-    - 增加 `_ready()` 示例调用（可在启动时填充 multimesh）。
-    - 保留了向后兼容的 wrapper `sample_mesh_surface(...)`，该 wrapper 会按需加载采样工具脚本并调用。
+	- `fill_multimesh_from_mediums(samples_per_unit: float = 1.0, total_samples: int = 0, instance_scale = 0.1)`
+	  - 遍历 `mediums` 中的 `MeshInstance3D`，用采样点填充 `multiMeshInstance.multimesh`。
+	  - 支持每实例非等比缩放：`instance_scale` 可为 float、Vector3 或 Array（按索引循环）。
+	- 增加 `_ready()` 示例调用（可在启动时填充 multimesh）。
+	- 保留了向后兼容的 wrapper `sample_mesh_surface(...)`，该 wrapper 会按需加载采样工具脚本并调用。
   - 修复与调优：考虑 Godot 4 的 API（如 `to_global`、`Basis * vector`）并修复了初始实现中的缩进与多重赋值问题。
 
 - 新建：`utils/mesh_sampler.gd`（class_name MeshSampler）

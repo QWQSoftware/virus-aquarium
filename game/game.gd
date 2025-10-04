@@ -7,7 +7,9 @@ var multiMeshInstance = $MultiMeshInstance3D
 var mediums : Array = [
 	$Medium01,
 	$Medium02,
-	$Medium03
+	$Medium03,
+	$Medium04,
+	$MeshInstance3D
 ]
 
 # 生物实例列表（运行时创建）
@@ -16,6 +18,7 @@ var creatures : Array = []
 
 const MeshSamplerScript = preload("res://utils/mesh_sampler.gd")
 const CreatureScript = preload("res://game/creature.gd")
+
 
 
 # MeshSampler is loaded on-demand below to avoid static preload issues in this environment.
@@ -33,7 +36,8 @@ func fill_multimesh_from_mediums(samples_per_unit: float = 1.0, total_samples: i
 			var samples = sample_mesh_surface(m, samples_per_unit, total_samples)
 			# 合并样本（实例缩放由 instance_scale 参数控制，不跟随源节点）
 			for s in samples:
-				all_samples.append({"position": s["position"], "normal": s["normal"]})
+				# store source mesh so we can convert normals back to mesh-local space later
+				all_samples.append({"position": s["position"], "normal": s["normal"], "source": m})
 
 	# 设置 MultiMesh 实例数量
 	var mm = multiMeshInstance.multimesh
@@ -68,6 +72,13 @@ func fill_multimesh_from_mediums(samples_per_unit: float = 1.0, total_samples: i
 		var t = Transform3D(b, pos)
 		mm.set_instance_transform(i, t)
 
+		# No custom normal data: rely on the instance transform (set above) so the mesh's
+		# original vertex normals are transformed correctly by the engine.
+
+		print("Instance ", i, " pos=", pos, " normal=", normal)
+		print(normal)
+		print(Color(normal.x, normal.y, normal.z, 0.0))
+
 		# 随机颜色：使用 RNG 生成 HSV，便于得到鲜艳的颜色
 		var rng = RandomNumberGenerator.new()
 		rng.randomize()
@@ -78,11 +89,14 @@ func fill_multimesh_from_mediums(samples_per_unit: float = 1.0, total_samples: i
 		# 尝试用 set_instance_color（Godot 4），否则把颜色写入 custom_data（vec4）作为回退
 		if mm.has_method("set_instance_color"):
 			mm.set_instance_color(i, col)
-		else:
-			# custom_data 是一个 Vector4 - 存储 RGBA
-			if mm.has_method("set_instance_custom_data"):
-				mm.set_instance_custom_data(i, Vector4(col.r, col.g, col.b, col.a))
-			# 否则不设置颜色
+
+		# Encode the sampled world-space normal into the instance's local normal space
+		# so the shader can decode it and assign NORMAL in vertex().
+		var n_world = normal
+		# instance basis is b
+		var n_instance_local = (b.transposed() * n_world).normalized()
+		var enc = Color(n_instance_local.x * 0.5 + 0.5, n_instance_local.y * 0.5 + 0.5, n_instance_local.z * 0.5 + 0.5, 1.0)
+		mm.set_instance_custom_data(i, enc)
 
 	# 如果需要其他实例化属性（颜色、尺度等），可以在这里设置
 
@@ -102,9 +116,13 @@ func sample_mesh_surface(mesh_instance: MeshInstance3D, samples_per_unit: float 
 func _ready() -> void:
 	# 示例：启动时填充 multimesh（每个实例使用统一缩放 0.1）
 	fill_multimesh_from_mediums(1.0, 0, 1.0)
-	# 创建一个示例 Creature 并加入 creatures 列表（用于运行时测试）
-	var _gene = GenomeUtils.random_genome()
-	var creature = CreatureScript.new(_gene, Vector3.ZERO)
-	creatures.append(creature)
+	## 创建一个示例 Creature 并加入 creatures 列表（用于运行时测试）
+	#var _gene = GenomeUtils.random_genome()
+	#var creature = CreatureScript.new(_gene, Vector3.ZERO)
+	#creatures.append(creature)
 
 	return
+
+func _physics_process(delta: float) -> void:
+	for i:Creature in creatures:
+		i.update(delta)

@@ -6,7 +6,7 @@
 [ext_resource type="ArrayMesh" uid="uid://7febiye10vpp" path="res://assets/viruse_meshes/ring.res" id="2_h7iqs"]
 [ext_resource type="ArrayMesh" uid="uid://cm1kaufixpk0g" path="res://assets/medium_meshes/medium_02.res" id="3_dxrkv"]
 [ext_resource type="ArrayMesh" uid="uid://ud6uo2kgjhxt" path="res://assets/medium_meshes/medium_03.res" id="4_dakft"]
-[ext_resource type="Shader" uid="uid://deyqdio76qmdu" path="res://assets/viruse_meshes/viruse.gdshader" id="6_u5opy"]
+[ext_resource type="Shader" uid="uid://deyqdio76qmdu" path="res://assets/viruse_meshes/virus.gdshader" id="6_u5opy"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4fuuu"]
 sky_top_color = Color(0.1507276, 0.36575258, 1, 1)
@@ -47,7 +47,8 @@ shadow_enabled = true
 environment = SubResource("Environment_dakft")
 
 [node name="Camera" parent="." instance=ExtResource("1_vasa2")]
-transform = Transform3D(-0.9659258, 0, 0.25881913, 0, 1, 0, -0.25881913, 0, -0.9659258, 2.3127487, 0, -10.673546)
+transform = Transform3D(-0.8329035, -0.075065136, 0.5483037, 0, 0.9907583, 0.13563907, -0.5534182, 0.11297426, -0.82520604, 14.202655, 10.125504, -13.171333)
+size = 35.464
 
 [node name="Medium01" type="MeshInstance3D" parent="."]
 transform = Transform3D(0.30979335, 0.15861116, 0, -0.15861116, 0.30979335, 0, 0, 0, 0.34803653, -10.930731, -10.1119175, 5.35855)
@@ -59,6 +60,10 @@ mesh = ExtResource("3_dxrkv")
 
 [node name="Medium03" type="MeshInstance3D" parent="."]
 transform = Transform3D(1.8313065, 1.8313065, 0, -1.8313065, 1.8313065, 0, 0, 0, 2.5898585, -30.687973, 0, 7.1875525)
+mesh = ExtResource("4_dakft")
+
+[node name="Medium04" type="MeshInstance3D" parent="."]
+transform = Transform3D(4.7589116, 2.802003, -0.19569075, -2.6386707, 4.664612, 0.7303278, 1.0129702, -1.0129702, 2.8217697, -27.687973, 3, 44.187553)
 mesh = ExtResource("4_dakft")
 
 [node name="MultiMeshInstance3D" type="MultiMeshInstance3D" parent="."]
