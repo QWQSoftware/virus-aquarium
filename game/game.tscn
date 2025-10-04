@@ -1,0 +1,58 @@
+[gd_scene load_steps=11 format=3 uid="uid://0rfytu81flit"]
+
+[ext_resource type="Script" uid="uid://cy6lpo27737dh" path="res://game/game.gd" id="1_dxrkv"]
+[ext_resource type="PackedScene" uid="uid://6vhw6mex20aw" path="res://camera/camera.tscn" id="1_vasa2"]
+[ext_resource type="ArrayMesh" uid="uid://bkrtltkpqk4i6" path="res://assets/medium_meshes/medium_01.res" id="2_4fuuu"]
+[ext_resource type="ArrayMesh" uid="uid://7febiye10vpp" path="res://assets/viruse_meshes/ring.res" id="2_h7iqs"]
+[ext_resource type="ArrayMesh" uid="uid://cm1kaufixpk0g" path="res://assets/medium_meshes/medium_02.res" id="3_dxrkv"]
+[ext_resource type="ArrayMesh" uid="uid://ud6uo2kgjhxt" path="res://assets/medium_meshes/medium_03.res" id="4_dakft"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4fuuu"]
+sky_top_color = Color(0.1507276, 0.36575258, 1, 1)
+sky_horizon_color = Color(0, 0.6156863, 0.81960785, 1)
+sky_curve = 0.19118398
+ground_bottom_color = Color(0, 0.6368587, 0.9094659, 1)
+ground_horizon_color = Color(0, 0.6156863, 0.81960785, 1)
+energy_multiplier = 0.5
+
+[sub_resource type="Sky" id="Sky_dxrkv"]
+sky_material = SubResource("ProceduralSkyMaterial_4fuuu")
+
+[sub_resource type="Environment" id="Environment_dakft"]
+background_mode = 2
+sky = SubResource("Sky_dxrkv")
+tonemap_mode = 2
+ssao_enabled = true
+glow_enabled = true
+
+[sub_resource type="MultiMesh" id="MultiMesh_dxrkv"]
+transform_format = 1
+mesh = ExtResource("2_h7iqs")
+
+[node name="Game" type="Node3D"]
+script = ExtResource("1_dxrkv")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_dakft")
+
+[node name="Camera" parent="." instance=ExtResource("1_vasa2")]
+transform = Transform3D(-0.9659258, 0, 0.25881913, 0, 1, 0, -0.25881913, 0, -0.9659258, 2.3127487, 0, -10.673546)
+
+[node name="Medium01" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.30979335, 0.15861116, 0, -0.15861116, 0.30979335, 0, 0, 0, 0.34803653, -10.930731, -10.1119175, 5.35855)
+mesh = ExtResource("2_4fuuu")
+
+[node name="Medium02" type="MeshInstance3D" parent="."]
+transform = Transform3D(0.49999997, -0.86602545, 0, 0.86602545, 0.49999997, 0, 0, 0, 1, 17.90306, 9.536743e-07, 22.975937)
+mesh = ExtResource("3_dxrkv")
+
+[node name="Medium03" type="MeshInstance3D" parent="."]
+transform = Transform3D(1.8313065, 1.8313065, 0, -1.8313065, 1.8313065, 0, 0, 0, 2.5898585, -30.687973, 0, 7.1875525)
+mesh = ExtResource("4_dakft")
+
+[node name="MultiMeshInstance3D" type="MultiMeshInstance3D" parent="."]
+multimesh = SubResource("MultiMesh_dxrkv")
