@@ -4,99 +4,56 @@ extends Node3D
 var multiMeshInstance = $MultiMeshInstance3D
 
 @onready
+var debugMultiMeshInstance = $DebugMultiMeshInstance3D
+
+@onready
+var camera : FreeLookCamera = $Camera
+
+@onready
 var mediums : Array = [
 	$Medium01,
 	$Medium02,
 	$Medium03,
 	$Medium04,
-	$MeshInstance3D
+	$Medium05, 
+	$Medium06, 
+	$Medium07
 ]
 
-# 生物实例列表（运行时创建）
-var creatures : Array = []
 
-
-const MeshSamplerScript = preload("res://utils/mesh_sampler.gd")
-const CreatureScript = preload("res://game/creature.gd")
-
+# Debug options for visualizing samples
+const DEBUG_SHOW_SAMPLES: bool = true
+const DEBUG_MAX_SAMPLES: int = 8
 
 
 # MeshSampler is loaded on-demand below to avoid static preload issues in this environment.
 
 # medium properties
 
-func fill_multimesh_from_mediums(samples_per_unit: float = 1.0, total_samples: int = 0, _instance_scale = 0.1) -> void:
-	# 遍历 mediums，采样每个 MeshInstance3D 的表面，并把位置写入 multiMeshInstance
-	if not multiMeshInstance:
+
+func fill_multimesh_from_mediums(mm_instance: MultiMeshInstance3D, samples = null, samples_per_unit: float = 1.0, total_samples: int = 0, _instance_scale: float = 0.1) -> void:
+	# 填充 MultiMeshInstance：如果传入 samples（位置/法线数组），优先使用它；否则从 mediums 采样
+	if not mm_instance:
 		return
 
-	var all_samples := []
-	for m in mediums:
-		if m and m is MeshInstance3D:
-			var samples = sample_mesh_surface(m, samples_per_unit, total_samples)
-			# 合并样本（实例缩放由 instance_scale 参数控制，不跟随源节点）
-			for s in samples:
-				# store source mesh so we can convert normals back to mesh-local space later
-				all_samples.append({"position": s["position"], "normal": s["normal"], "source": m})
+	var all_samples: Array = []
+	if samples != null:
+		all_samples = samples.duplicate()
+	else:
+		for m in mediums:
+			if m and m is MeshInstance3D:
+				var samp = sample_mesh_surface(m, samples_per_unit, total_samples)
+				# 合并样本（实例缩放由 instance_scale 参数控制，不跟随源节点）
+				for s in samp:
+					all_samples.append({"position": s["position"], "normal": s["normal"], "source": m})
 
 	# 设置 MultiMesh 实例数量
-	var mm = multiMeshInstance.multimesh
+	var mm = mm_instance.multimesh
 	if mm == null:
 		return
 
-	mm.instance_count = all_samples.size()
-
-	# 填充每个实例的 transform（位置 + 使用法线构建朝向）
-	for i in range(all_samples.size()):
-		var entry = all_samples[i]
-		var pos: Vector3 = entry["position"]
-		var normal: Vector3 = entry["normal"]
-		# 构建一个简单的 transform：使 z 轴对准法线（或 y 轴，取决于你的实例朝向需求）
-		var up = Vector3.UP
-		if abs(up.dot(normal)) > 0.999: # 避免共线
-			up = Vector3.FORWARD
-		var b = Basis()
-		# 使用 Gram-Schmidt 创建正交基
-		var z = normal.normalized()
-		var x = up.cross(z).normalized()
-		var y = z.cross(x).normalized()
-
-		# 计算每实例缩放：支持 float（均匀缩放）、Vector3（非等比）或 Array（按索引/循环）
-		var inst_scale_vec = Vector3.ONE
-
-		# 应用非等比缩放到 basis
-		b.x = x * inst_scale_vec.x
-		b.y = y * inst_scale_vec.y
-		b.z = z * inst_scale_vec.z
-
-		var t = Transform3D(b, pos)
-		mm.set_instance_transform(i, t)
-
-		# No custom normal data: rely on the instance transform (set above) so the mesh's
-		# original vertex normals are transformed correctly by the engine.
-
-		print("Instance ", i, " pos=", pos, " normal=", normal)
-		print(normal)
-		print(Color(normal.x, normal.y, normal.z, 0.0))
-
-		# 随机颜色：使用 RNG 生成 HSV，便于得到鲜艳的颜色
-		var rng = RandomNumberGenerator.new()
-		rng.randomize()
-		var h = rng.randf()
-		var s = rng.randf_range(0.6, 1.0)
-		var v = rng.randf_range(0.6, 1.0)
-		var col = Color.from_hsv(h, s, v)
-		# 尝试用 set_instance_color（Godot 4），否则把颜色写入 custom_data（vec4）作为回退
-		if mm.has_method("set_instance_color"):
-			mm.set_instance_color(i, col)
-
-		# Encode the sampled world-space normal into the instance's local normal space
-		# so the shader can decode it and assign NORMAL in vertex().
-		var n_world = normal
-		# instance basis is b
-		var n_instance_local = (b.transposed() * n_world).normalized()
-		var enc = Color(n_instance_local.x * 0.5 + 0.5, n_instance_local.y * 0.5 + 0.5, n_instance_local.z * 0.5 + 0.5, 1.0)
-		mm.set_instance_custom_data(i, enc)
+	# Delegate to helper that fills multimesh from sample list
+	update_multimesh_from_samples(mm, all_samples)
 
 	# 如果需要其他实例化属性（颜色、尺度等），可以在这里设置
 
@@ -108,6 +65,74 @@ func sample_mesh_surface(mesh_instance: MeshInstance3D, samples_per_unit: float 
 	# 兼容 wrapper：调用迁移到 MeshSampler
 	return MeshSampler.sample_mesh_surface(mesh_instance, samples_per_unit, total_samples)
 
+
+### Helpers for MultiMesh updates
+func _build_basis_from_normal(normal: Vector3, inst_scale_vec := Vector3.ONE) -> Basis:
+	var up = Vector3.UP
+	if abs(up.dot(normal)) > 0.999:
+		up = Vector3.FORWARD
+	var z = normal.normalized()
+	var x = up.cross(z).normalized()
+	var y = z.cross(x).normalized()
+	var b = Basis()
+	b.x = x * inst_scale_vec.x
+	b.y = y * inst_scale_vec.y
+	b.z = z * inst_scale_vec.z
+	return b
+
+func _encode_instance_normal_from_basis(b: Basis, n_world: Vector3) -> Color:
+	var n_local = (b.transposed() * n_world).normalized()
+	return Color(n_local.x * 0.5 + 0.5, n_local.y * 0.5 + 0.5, n_local.z * 0.5 + 0.5, 1.0)
+
+
+func update_multimesh_from_samples(mm: MultiMesh, samples: Array) -> void:
+	if mm == null:
+		return
+	mm.instance_count = samples.size()
+	for i in range(samples.size()):
+		var entry = samples[i]
+		var pos: Vector3 = entry["position"]
+		var normal: Vector3 = entry["normal"].normalized()
+		var b = _build_basis_from_normal(normal)
+		var t = Transform3D(b, pos)
+		mm.set_instance_transform(i, t)
+		# color
+		var rng = RandomNumberGenerator.new()
+		rng.randomize()
+		var h = rng.randf_range(0.48, 0.52)
+		var s = rng.randf_range(0.0, 0.0)
+		var v = 1.0
+		var col = Color.from_hsv(h, s, v)
+		if mm.has_method("set_instance_color"):
+			mm.set_instance_color(i, col)
+		# custom normal (instance-local)
+		var enc = _encode_instance_normal_from_basis(b, normal)
+		mm.set_instance_custom_data(i, enc)
+
+func update_multimesh_from_creatures(mm: MultiMesh, creatures_list: Array) -> void:
+	if mm == null:
+		return
+	mm.instance_count = creatures_list.size()
+	for i in range(creatures_list.size()):
+		var c = creatures_list[i]
+		var pos: Vector3 = c.position
+		# 基于生物当前大小（以 1m 为基准）计算实例缩放
+		var size_scale: float = max(0.001, float(c.current_size_m))
+		var inst_scale_vec: Vector3 = Vector3.ONE * size_scale
+		var n_world: Vector3 = Creature.world_surface_normals[c.index]
+		# 构建带缩放的 basis，使实例朝向与法线一致并按 size_scale 缩放
+		var b = _build_basis_from_normal(n_world, inst_scale_vec)
+		var t = Transform3D(b, pos)
+		mm.set_instance_transform(i, t)
+		# 更新静态大小数组，供其它系统使用
+		if c.index >= 0 and c.index < Creature.creatures_sizes.size():
+			Creature.creatures_sizes[c.index] = size_scale * 0.05;
+		var enc = _encode_instance_normal_from_basis(b, n_world)
+		mm.set_instance_custom_data(i, enc)
+		var col = Color.from_hsv(0.99, 0.5, 1.0)
+		if mm.has_method("set_instance_color"):
+			mm.set_instance_color(i, col)
+
 # creature properties
 
 
@@ -115,14 +140,72 @@ func sample_mesh_surface(mesh_instance: MeshInstance3D, samples_per_unit: float 
 
 func _ready() -> void:
 	# 示例：启动时填充 multimesh（每个实例使用统一缩放 0.1）
-	fill_multimesh_from_mediums(1.0, 0, 1.0)
-	## 创建一个示例 Creature 并加入 creatures 列表（用于运行时测试）
-	#var _gene = GenomeUtils.random_genome()
-	#var creature = CreatureScript.new(_gene, Vector3.ZERO)
-	#creatures.append(creature)
+	#fill_multimesh_from_mediums(1.0, 0, 1.0)
 
+	## 创建一个示例 Creature 并加入 creatures 列表（用于运行时测试）
+
+	
+	
+	var all_samples := []
+	for m in mediums:
+		if m and m is MeshInstance3D:
+			var samples = sample_mesh_surface(m, 0.2, 0)
+			# 合并样本（实例缩放由 instance_scale 参数控制，不跟随源节点）
+			for s in samples:
+				# store source mesh so we can convert normals back to mesh-local space later
+				all_samples.append({"position": s["position"], "normal": s["normal"], "source": m})
+
+		fill_multimesh_from_mediums(debugMultiMeshInstance, all_samples, 0.2, 0, 0.01)
+
+	for s in all_samples:
+		Creature.world_surface_points.append(s["position"])
+		Creature.world_surface_normals.append(s["normal"])
+		Creature.world_surface_point_is_attached.append(false)
+	
+	# var newCreature = Creature.new(GenomeUtils.random_plant_genome(), Transform3D.IDENTITY)
+	# newCreature.attach_to_surface_point(0)
 	return
 
+var speed_radio : int = 1
+
+func _input(event: InputEvent) -> void:
+	if(event.is_action("speed_up")):
+		speed_radio *= 2
+	if(event.is_action("speed_down")):
+		speed_radio /= 2
+		if speed_radio < 1:
+			speed_radio = 1
+
+	# 在范围内的所有空闲附着点放置新生物
+	if(event.is_action("put_new_creatures")):
+		var target_range = camera.BallRadius
+		var pos = camera.BallRangeMesh.global_transform.origin
+		for i in range(Creature.world_surface_points.size()):
+			var p = Creature.world_surface_points[i]
+			if Creature.world_surface_point_is_attached[i]:
+				continue
+			if p.distance_to(pos) <= target_range:
+				var c = Creature.new(GenomeUtils.random_plant_genome(), Transform3D.IDENTITY)
+				c.attach_to_surface_point(i)
+
+		
+	
+
 func _physics_process(delta: float) -> void:
-	for i:Creature in creatures:
-		i.update(delta)
+	# First update creature simulation/state
+	for c in Creature.creatures:
+		c.update(delta * speed_radio)
+
+	# Remove dead creatures after update so subsequent rendering/instancing matches live set
+	Creature.cleanup_dead()
+
+	# Then reflect creatures into the MultiMesh each frame
+	var mm = null
+	if multiMeshInstance:
+		mm = multiMeshInstance.multimesh
+	if mm == null:
+		return
+
+	# Ensure instance count matches creatures
+	update_multimesh_from_creatures(mm, Creature.creatures)
+	pass

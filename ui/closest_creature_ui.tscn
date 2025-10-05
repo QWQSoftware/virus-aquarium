@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c1iwm1a8kdhqm"]
+
+[ext_resource type="Script" uid="uid://cdjce43sv38as" path="res://ui/closest_creature_ui.gd" id="1_hef0w"]
+
+[node name="ClosestCreatureUi" type="CanvasLayer"]
+script = ExtResource("1_hef0w")

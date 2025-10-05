@@ -1,6 +1,45 @@
-[gd_scene load_steps=2 format=3 uid="uid://6vhw6mex20aw"]
+[gd_scene load_steps=5 format=3 uid="uid://6vhw6mex20aw"]
 
 [ext_resource type="Script" uid="uid://vryifac5wj2k" path="res://camera/camera.gd" id="1_u5kg4"]
 
+[sub_resource type="Shader" id="Shader_lw1ob"]
+code = "shader_type spatial;
+
+uniform vec4 color : source_color;
+
+void vertex() {
+	// Called for every vertex the material is visible on.
+}
+
+void fragment() {
+	ALBEDO = color.rgb;
+	// Called for every pixel the material is visible on.
+	ALPHA = color.a;
+}
+
+//void light() {
+//	// Called for every pixel for every light affecting the material.
+//	// Uncomment to replace the default light processing function with this one.
+//}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_gsf7k"]
+render_priority = 0
+shader = SubResource("Shader_lw1ob")
+shader_parameter/color = Color(0, 0, 0, 0.25882354)
+
+[sub_resource type="SphereMesh" id="SphereMesh_0lfnk"]
+material = SubResource("ShaderMaterial_gsf7k")
+radius = 1.0
+height = 2.0
+
 [node name="Camera" type="Camera3D"]
 script = ExtResource("1_u5kg4")
+
+[node name="RayCast3D" type="RayCast3D" parent="."]
+target_position = Vector3(0, 0, -10)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="RayCast3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -6)
+mesh = SubResource("SphereMesh_0lfnk")
+skeleton = NodePath("../..")

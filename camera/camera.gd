@@ -1,5 +1,11 @@
 class_name FreeLookCamera extends Camera3D
 
+@onready
+var RayCast : RayCast3D = $RayCast3D
+@onready
+var BallRangeMesh : MeshInstance3D = $RayCast3D/MeshInstance3D
+const BallRadius = 1.0
+
 # Modifier keys' speed multiplier
 const SHIFT_MULTIPLIER = 2.5
 const ALT_MULTIPLIER = 1.0 / SHIFT_MULTIPLIER
@@ -67,6 +73,13 @@ func _input(event):
 func _process(delta):
 	_update_mouselook()
 	_update_movement(delta)
+	
+	if RayCast.is_colliding():
+		BallRangeMesh.visible = true
+		BallRangeMesh.global_transform.origin = RayCast.get_collision_point()
+	else:
+		BallRangeMesh.visible = false
+	
 
 # Updates camera movement
 func _update_movement(delta):
