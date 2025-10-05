@@ -4,8 +4,8 @@ extends Label
 # 使用方法：在场景中添加一个 Label 节点并把此脚本附加到它。
 # 要求：项目中存在全局可访问的 `Creature` 类（带有静态数组 `Creature.creatures`）
 
-@export var update_rate: float = 0.2 # 信息刷新间隔（秒）
-@export var max_distance: float = 100.0 # 搜索最近生物的最大距离
+@export var update_rate: float = 0.01 # 信息刷新间隔（秒）
+@export var max_distance: float = 10.0 # 搜索最近生物的最大距离
 
 var _acc: float = 0.0
 
