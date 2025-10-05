@@ -36,9 +36,37 @@ static var creatures_colors: Array[Color] = []
 static var creatures_is_plants: Array[bool] = []
 
 static var creatures : Array[Creature] = []
+static var surface_octree = null
+static var creatures_octree = null
+
+static func rebuild_surface_octree(max_points_per_node: int = 12, max_depth: int = 8) -> void:
+	# Build/rebuild octree for world_surface_points
+	var OctreeClass = preload("res://utils/octree.gd")
+	if surface_octree == null:
+		surface_octree = OctreeClass.new()
+	if world_surface_points.size() == 0:
+		surface_octree.root = null
+		return
+	surface_octree.build_from_points(world_surface_points, max_points_per_node, max_depth)
+
+static func rebuild_creatures_octree(max_points_per_node: int = 12, max_depth: int = 8) -> void:
+	# Build/rebuild octree that indexes creature positions (aligned with Creature.creatures array)
+	var OctreeClass = preload("res://utils/octree.gd")
+	if creatures_octree == null:
+		creatures_octree = OctreeClass.new()
+	var pos_arr: Array = []
+	for c in creatures:
+		if c == null:
+			pos_arr.append(Vector3())
+		else:
+			pos_arr.append(c.position)
+	if pos_arr.size() == 0:
+		creatures_octree.root = null
+		return
+	creatures_octree.build_from_points(pos_arr, max_points_per_node, max_depth)
 
 # Debugging: print per-creature update details when enabled. Set DEBUG_FILTER_INDEX >=0 to only print that index.
-static var DEBUG_PRINT_UPDATES: bool = true
+static var DEBUG_PRINT_UPDATES: bool = false
 static var DEBUG_FILTER_INDEX: int = -1
 
 
@@ -164,8 +192,7 @@ func _init(genome_in: Array, transform: Transform3D) -> void:
 	self.now_attached_id = -1
 
 	creatures_world_positions.append(transform.origin)
-	creatures_sizes.append(initial_size_m)
-	creatures_colors.append(Color.from_hsv(color_h_unitless, 1.0, 1.0))
+
 
 	# 把传入的基因数组复制到实例字段（避免外部修改影响）
 	self.genome = genome_in.duplicate()
@@ -300,7 +327,14 @@ func _init(genome_in: Array, transform: Transform3D) -> void:
 
 	self.attachments = []
 
+
+	creatures_sizes.append(initial_size_m)
+	creatures_colors.append(Color.from_hsv(color_h_unitless, 1.0, 1.0))
+
 	creatures.append(self)
+
+	if DEBUG_PRINT_UPDATES:
+		print("[CREATURE] created index=%d pos=%s is_plant=%s" % [self.index, str(self.position), str(self.is_plant)])
 
 # 销毁时从静态数组中移除自己
 func dispose() -> void:
@@ -337,11 +371,21 @@ static func cleanup_dead() -> void:
 
 
 func attach_to_surface_point(point_id: int) -> void:
+	# Validate point id
 	if point_id < 0 or point_id >= world_surface_points.size():
 		return
+
+	# Attach: set position and mark point as attached (idempotent)
 	self.now_attached_id = point_id
 	self.position = world_surface_points[point_id]
 	self.global_transform.origin = self.position
+	if point_id < world_surface_point_is_attached.size():
+		world_surface_point_is_attached[point_id] = true
+	# record in attachments list for completeness
+	if not self.attachments:
+		self.attachments = []
+	if not self.attachments.has(point_id):
+		self.attachments.append(point_id)
 
 
 # 年龄上下文
@@ -507,7 +551,7 @@ var _plant_repro_mate_idx : int = -1
 var _plant_repro_found_points : Array = []
 
 func do_plant_reproduce(_delta: float) -> void:
-	# 植物专用繁殖逻辑（支持配对繁殖和自我复制）
+	# 植物专用繁殖逻辑（优化版）
 	# 只在成年尝试繁殖
 	if age_s < adult_age_s or age_s > fertility_end_s:
 		return
@@ -516,21 +560,32 @@ func do_plant_reproduce(_delta: float) -> void:
 	if energy_p < min(mating_required_energy_p, selfrep_required_energy_p):
 		return
 
-	# 检查繁殖冷却
+	# 检查繁殖冷却（尽量只调用一次）
 	if cooldown_timer > 0.0:
 		cooldown_timer = max(0.0, cooldown_timer - _delta)
 		return
 
+	# 本地缓存以减少全局数组访问开销
+	var wsp: Array = world_surface_points
+	var wsp_att: Array = world_surface_point_is_attached
+	var creatures_arr: Array = creatures
+	var ws_count: int = wsp.size()
+	var ws_att_count: int = wsp_att.size()
+	var pos_self: Vector3 = self.position
+	var off_count: int = int(offspring_count)
+	# cache squared radii to avoid sqrt in distance_to
+	var interact_range_sq: float = interact_range_m * interact_range_m
+	var selfrep_radius: float = 2.0
+	var selfrep_radius_sq: float = selfrep_radius * selfrep_radius
+
 	# 如果已经处于繁殖状态，根据当前模式推进进度并在完成时生成后代
 	if is_reproducing:
 		if _plant_repro_mode == 2:
-			# 自我复制使用 selfrep_time_s
 			progress += _delta / max(0.0001, selfrep_time_s)
 		elif _plant_repro_mode == 1:
-			# 与配偶交配使用 mating_duration_s
 			progress += _delta / max(0.0001, mating_duration_s)
 		else:
-			# 兼容：如果没有模式则直接取消繁殖
+			# 非法模式：重置
 			is_reproducing = false
 			_plant_repro_mode = 0
 			_plant_repro_mate_idx = -1
@@ -539,84 +594,68 @@ func do_plant_reproduce(_delta: float) -> void:
 			return
 
 		if progress >= 1.0:
-			# 繁殖完成：根据模式生成后代并结算能量/冷却
 			progress = 0.0
 			is_reproducing = false
 
 			if _plant_repro_mode == 2:
 				# 自我复制：在预占的附着点上生成后代
 				for pid in _plant_repro_found_points:
-					if pid < 0 or pid >= world_surface_points.size():
+					if typeof(pid) != TYPE_INT:
 						continue
-					# 位置再次检查（已被预占则直接跳过）
-					if world_surface_point_is_attached.size() > pid and world_surface_point_is_attached[pid]:
-						# 已预占/标记为占用，生成后代并附着
-						# 复制并对基因进行变异以引入突变
+					if pid < 0 or pid >= ws_count:
+						continue
+					# 仅在预占标记仍然为 true 时生成
+					if pid < ws_att_count and wsp_att[pid]:
 						var child_genome = self.genome.duplicate()
 						child_genome = GenomeUtils.mutate_genome(child_genome)
-						# 确保子代仍符合植物标准（如 stamina=0, 合理的成年年龄/寿命）
 						child_genome = GenomeUtils.enforce_plant_genome(child_genome)
-						var new_creature = Creature.new(child_genome, Transform3D(Basis(), world_surface_points[pid]))
+						var new_creature = Creature.new(child_genome, Transform3D(Basis(), wsp[pid]))
 						new_creature.attach_to_surface_point(pid)
-				# 扣除能量并设置冷却
+
 				energy_p = max(0.0, energy_p - selfrep_energy_cost_p)
 				cooldown_timer = selfrep_cooldown_s
 
 			elif _plant_repro_mode == 1:
-				# 配对繁殖：尝试在自己周围或配偶周围寻找空闲点并生成后代
+				# 配对繁殖：尝试在自己或配偶周围收集空闲点（一次扫描）
 				var mate: Creature = null
-				if _plant_repro_mate_idx >= 0 and _plant_repro_mate_idx < creatures.size():
-					mate = creatures[_plant_repro_mate_idx]
+				if _plant_repro_mate_idx >= 0 and _plant_repro_mate_idx < creatures_arr.size():
+					mate = creatures_arr[_plant_repro_mate_idx]
 
-				# 收集可用点（优先自身附近，然后配偶附近）
-				var spawn_points: Array[int] = []
-				# 优先从自身附近收集
-				for i in range(world_surface_points.size()):
-					if spawn_points.size() >= offspring_count:
-						break
-					if i >= world_surface_point_is_attached.size():
-						continue
-					if world_surface_point_is_attached[i]:
-						continue
-					var pt = world_surface_points[i]
-					if pt.distance_to(self.position) <= 2.0:
-						spawn_points.append(i)
-
-				# 如需更多，则从配偶附近继续收集（避免重复）
-				if mate:
-					for i in range(world_surface_points.size()):
-						if spawn_points.size() >= offspring_count:
+				var spawn_points: Array = []
+				if off_count > 0 and ws_count > 0:
+					var mate_pos: Vector3 = mate.position if mate != null else Vector3()
+					for i in range(ws_count):
+						if spawn_points.size() >= off_count:
 							break
-						if i >= world_surface_point_is_attached.size():
+						if i >= ws_att_count:
 							continue
-						if world_surface_point_is_attached[i]:
+						if wsp_att[i]:
 							continue
-						if spawn_points.has(i):
+						var pt = wsp[i]
+						# 直接一次判断是否在自己或配偶附近
+						if pt.distance_squared_to(pos_self) <= selfrep_radius_sq:
+							spawn_points.append(i)
 							continue
-						var pt2 = world_surface_points[i]
-						if pt2.distance_to(mate.position) <= 2.0:
+						if mate != null and pt.distance_squared_to(mate_pos) <= selfrep_radius_sq:
 							spawn_points.append(i)
 
-				# 生成后代（基因简单采用父本基因拷贝作为占位实现）
+				# 生成后代并标记附着点为已占用
 				for pid in spawn_points:
-					if pid < 0 or pid >= world_surface_points.size():
+					if pid < 0 or pid >= ws_count:
 						continue
-					world_surface_point_is_attached[pid] = true
-					# 交配子代：若存在配偶则做单点交叉，否则复制父本基因，再对结果进行突变
+					if pid < ws_att_count:
+						wsp_att[pid] = true
 					var child_genome: Array = []
 					if mate != null:
 						child_genome = GenomeUtils.crossover_single_point(self.genome, mate.genome)
 					else:
 						child_genome = self.genome.duplicate()
-					# 对子代基因进行变异
 					child_genome = GenomeUtils.mutate_genome(child_genome)
-					# 若父本为植物，也需要确保子代满足植物约束
 					if self.is_plant:
 						child_genome = GenomeUtils.enforce_plant_genome(child_genome)
-					var new_creature2 = Creature.new(child_genome, Transform3D(Basis(), world_surface_points[pid]))
+					var new_creature2 = Creature.new(child_genome, Transform3D(Basis(), wsp[pid]))
 					new_creature2.attach_to_surface_point(pid)
 
-				# 扣除双方能量并设置双方冷却
 				energy_p = max(0.0, energy_p - mating_energy_cost_p)
 				cooldown_timer = mating_cooldown_s
 				if mate:
@@ -629,63 +668,99 @@ func do_plant_reproduce(_delta: float) -> void:
 			_plant_repro_found_points.clear()
 		return
 
+	# 尚未繁殖：优先使用空间索引（octree）做半径查询以避免线性扫描
+	var found_points: Array = []
+	var mate_idx: int = -1
+	var pos_self_local: Vector3 = pos_self
 
-	# 尚未繁殖：尝试寻找附近可用的附着点（用于自我复制）
-	var found_points: Array[int] = []
-	if offspring_count > 0:
-		for i in range(world_surface_points.size()):
-			if world_surface_point_is_attached[i]:
+	# 先尝试使用 surface_octree 查找附近空闲附着点
+	if surface_octree != null:
+		if off_count > 0:
+			var nearby_pts: Array = surface_octree.query_radius(pos_self_local, interact_range_m, off_count)
+			for pid in nearby_pts:
+				if pid >= 0 and pid < ws_att_count and not wsp_att[pid]:
+					found_points.append(pid)
+					if found_points.size() >= off_count:
+						break
+
+		# 使用 creatures_octree 查找配偶（若可用），否则回退到线性扫描
+		if creatures_octree != null:
+			var c_near: Array = creatures_octree.query_radius(pos_self_local, interact_range_m)
+			for ci_idx in c_near:
+				if ci_idx >= 0 and ci_idx < creatures_arr.size():
+					var ci_other = creatures_arr[ci_idx]
+					if ci_other == self:
+						continue
+					if not ci_other.is_alive or not ci_other.is_plant:
+						continue
+					if not ci_other.can_reproduce():
+						continue
+					mate_idx = ci_idx
+					break
+		else:
+			for ci in range(creatures_arr.size()):
+				var other_ci = creatures_arr[ci]
+				if other_ci == self:
+					continue
+				if not other_ci.is_alive or not other_ci.is_plant:
+					continue
+				if not other_ci.can_reproduce():
+					continue
+				if pos_self_local.distance_squared_to(other_ci.position) <= interact_range_sq:
+					mate_idx = ci
+					break
+	else:
+		# 没有 surface_octree：回退到线性扫描（同时寻找附着点与配偶）
+		var need_found = off_count > 0
+		for i in range(ws_count):
+			if mate_idx != -1 and (not need_found or found_points.size() >= off_count):
+				break
+			if i >= ws_att_count:
 				continue
-			var pt = world_surface_points[i]
-			# 搜索附近 interact_range_m 范围内的点
-			if pt.distance_to(self.position) > interact_range_m:
+			if need_found and not wsp_att[i]:
+				var pt_i = wsp[i]
+				if pt_i.distance_squared_to(pos_self_local) <= interact_range_sq:
+					found_points.append(i)
+					if found_points.size() >= off_count:
+						need_found = false
+		for ci in range(creatures_arr.size()):
+			var other_ci = creatures_arr[ci]
+			if other_ci == self:
 				continue
-			found_points.append(i)
-			if found_points.size() >= self.offspring_count:
+			if not other_ci.is_alive or not other_ci.is_plant:
+				continue
+			if not other_ci.can_reproduce():
+				continue
+			if pos_self_local.distance_squared_to(other_ci.position) <= interact_range_sq:
+				mate_idx = ci
 				break
 
-	# 配对尝试：优先与其他植物交配
-	var mate_idx: int = -1
-	for i in range(creatures.size()):
-		var other = creatures[i]
-		if other == self:
-			continue
-		if not other.is_alive or not other.is_plant:
-			continue
-		if not other.can_reproduce():
-			continue
-		var dist = self.position.distance_to(other.position)
-		if dist > interact_range_m:
-			continue
-		mate_idx = i
-		break
 
+	# 如果找到配偶则开始配对繁殖（设置双方状态）
 	if mate_idx != -1:
-		# 开始配对繁殖：设置双方为繁殖状态并记录配偶
-		var mate = creatures[mate_idx]
-		# 若任一方能量不足或处于冷却，则取消
-		if energy_p < mating_required_energy_p or mate.energy_p < mate.mating_required_energy_p:
+		var mate_ref = creatures_arr[mate_idx]
+		if energy_p < mating_required_energy_p or mate_ref.energy_p < mate_ref.mating_required_energy_p:
 			return
 		is_reproducing = true
 		progress = 0.0
 		_plant_repro_mode = 1
 		_plant_repro_mate_idx = mate_idx
-		# 将配偶也标记为繁殖中（但配偶的进度将在其自己的 do_plant_reproduce 中推进）
-		mate.is_reproducing = true
-		mate._plant_repro_mode = 1
-		mate._plant_repro_mate_idx = self.index
+		mate_ref.is_reproducing = true
+		mate_ref._plant_repro_mode = 1
+		mate_ref._plant_repro_mate_idx = self.index
 		return
 
-	# 自我复制尝试：如果找到至少一个点则开始自我复制并预占点
+	# 尝试自我复制：若找到至少一个点则开始自我复制并预占点
 	if found_points.size() > 0:
 		is_reproducing = true
 		progress = 0.0
 		_plant_repro_mode = 2
 		_plant_repro_found_points = found_points.duplicate()
-		# 预占这些附着点，防止被其他生物占用
 		for pid in _plant_repro_found_points:
-			if pid >= 0 and pid < world_surface_point_is_attached.size():
-				world_surface_point_is_attached[pid] = true
+			if typeof(pid) != TYPE_INT:
+				continue
+			if pid >= 0 and pid < ws_att_count:
+				wsp_att[pid] = true
 		return
 
 # 繁殖上下文

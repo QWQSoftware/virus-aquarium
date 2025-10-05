@@ -60,7 +60,7 @@ func _update_closest_creature() -> void:
 
 	# 如果没有找到合适的生物，清空显示
 	if not best_creature:
-		_label.text = ""
+		_label.call_deferred("set_text", "")
 		return
 
 	# 从生物中提取信息并格式化显示
@@ -154,5 +154,6 @@ func _update_closest_creature() -> void:
 	var selfrep_cooldown: float = best_creature.selfrep_cooldown_s if typeof(best_creature.selfrep_cooldown_s) != TYPE_NIL else 0.0
 	info_lines.append("Cooldown timer: %.1f s (mating cooldown: %.1f s, selfrep cooldown: %.1f s)" % [cooldown_timer, mating_cooldown, selfrep_cooldown])
 	info_lines.append("Is reproducing: %s" % ("Yes" if best_creature.is_reproducing else "No"))
-
-	_label.text = "\n".join(info_lines)
+	
+	var text = "\n".join(info_lines)
+	_label.call_deferred("set_text", text)

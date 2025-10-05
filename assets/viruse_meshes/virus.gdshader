@@ -11,7 +11,7 @@ void fragment() {
 	// Called for every pixel the material is visible on.
 	//
 	ALBEDO = COLOR.rgb;
-	ALPHA = COLOR.a;
+	//ALPHA = COLOR.a;
 	ALPHA = 0.999;
 }
 

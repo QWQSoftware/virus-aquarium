@@ -119,7 +119,10 @@ func update_multimesh_from_creatures(mm: MultiMesh, creatures_list: Array) -> vo
 		# 基于生物当前大小（以 1m 为基准）计算实例缩放
 		var size_scale: float = max(0.001, float(c.current_size_m))
 		var inst_scale_vec: Vector3 = Vector3.ONE * size_scale
-		var n_world: Vector3 = Creature.world_surface_normals[c.index]
+		# Use the surface normal at the creature's attached point if available.
+		var n_world: Vector3 = Vector3.UP
+		if c.now_attached_id >= 0 and c.now_attached_id < Creature.world_surface_normals.size():
+			n_world = Creature.world_surface_normals[c.now_attached_id]
 		# 构建带缩放的 basis，使实例朝向与法线一致并按 size_scale 缩放
 		var b = _build_basis_from_normal(n_world, inst_scale_vec)
 		var t = Transform3D(b, pos)
@@ -129,7 +132,10 @@ func update_multimesh_from_creatures(mm: MultiMesh, creatures_list: Array) -> vo
 			Creature.creatures_sizes[c.index] = size_scale * 0.05;
 		var enc = _encode_instance_normal_from_basis(b, n_world)
 		mm.set_instance_custom_data(i, enc)
-		var col = Color.from_hsv(0.99, 0.5, 1.0)
+		var col = Creature.creatures_colors[i]
+		
+		#print(Creature.creatures_colors)
+		
 		if mm.has_method("set_instance_color"):
 			mm.set_instance_color(i, col)
 
@@ -161,12 +167,29 @@ func _ready() -> void:
 		Creature.world_surface_points.append(s["position"])
 		Creature.world_surface_normals.append(s["normal"])
 		Creature.world_surface_point_is_attached.append(false)
-	
+
+	# Build spatial indexes initially
+	Creature.rebuild_surface_octree()
+	Creature.rebuild_creatures_octree()
+
 	# var newCreature = Creature.new(GenomeUtils.random_plant_genome(), Transform3D.IDENTITY)
 	# newCreature.attach_to_surface_point(0)
+
+	# Instance the UI that shows closest creature and count
+	var ui_scene = preload("res://ui/closest_creature_ui.tscn")
+	var ui_inst = ui_scene.instantiate()
+	add_child(ui_inst)
+	self.closest_ui = ui_inst
+
 	return
 
+var closest_ui = null
+
 var speed_radio : int = 1
+
+# How often (seconds) to rebuild the creatures octree when creatures move frequently
+@export var creatures_octree_rebuild_interval: float = 0.5
+var _creatures_octree_acc: float = 0.0
 
 func _input(event: InputEvent) -> void:
 	if(event.is_action("speed_up")):
@@ -185,11 +208,28 @@ func _input(event: InputEvent) -> void:
 			if Creature.world_surface_point_is_attached[i]:
 				continue
 			if p.distance_to(pos) <= target_range:
+				# pre-mark the point as attached to avoid double-placement races
+				if i < Creature.world_surface_point_is_attached.size():
+					if Creature.world_surface_point_is_attached[i]:
+						continue
+					Creature.world_surface_point_is_attached[i] = true
 				var c = Creature.new(GenomeUtils.random_plant_genome(), Transform3D.IDENTITY)
 				c.attach_to_surface_point(i)
 
 		
 	
+	# 按 'c' 键计数 camera.BallRangeMesh 范围内的生物并打印
+	if event is InputEventKey:
+		if event.pressed and not event.echo and event.keycode == Key.KEY_C:
+			var target_range = camera.BallRadius
+			var pos = camera.BallRangeMesh.global_transform.origin
+			var cnt = 0
+			for cc in Creature.creatures:
+				if cc and cc.position.distance_to(pos) <= target_range:
+					cnt += 1
+
+			print("[INPUT] Creatures in ball range:", cnt)
+
 
 func _physics_process(delta: float) -> void:
 	# First update creature simulation/state
@@ -208,4 +248,13 @@ func _physics_process(delta: float) -> void:
 
 	# Ensure instance count matches creatures
 	update_multimesh_from_creatures(mm, Creature.creatures)
+
+	if DEBUG_SHOW_SAMPLES:
+		print("[PHYSICS] creatures_count=", Creature.creatures.size(), " multimesh_count=", mm.instance_count)
+
+	# Trigger periodic rebuild of the creatures octree using accumulator
+	_creatures_octree_acc += delta
+	if _creatures_octree_acc >= creatures_octree_rebuild_interval:
+		_creatures_octree_acc = 0.0
+		Creature.rebuild_creatures_octree()
 	pass
