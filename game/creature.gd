@@ -2,6 +2,8 @@ extends RefCounted
 
 class_name Creature
 
+static var sound_effects : SoundEffects = null
+
 # 决策枚举（基于 doc_creature_logic.md）
 enum Decision {
 	NONE,               # 无决策/空闲
@@ -485,6 +487,8 @@ func _init(genome_in: Array, transform: Transform3D) -> void:
 
 	if DEBUG_PRINT_UPDATES:
 		print("[CREATURE] created index=%d pos=%s is_plant=%s" % [self.index, str(self.position), str(self.is_plant)])
+
+	sound_effects.play_random_sound()
 
 # 销毁时从静态数组中移除自己
 func dispose() -> void:

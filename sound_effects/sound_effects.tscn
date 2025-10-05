@@ -1,0 +1,18 @@
+[gd_scene load_steps=5 format=3 uid="uid://cxkh88b0oaihq"]
+
+[ext_resource type="Script" uid="uid://ecntrvidwp2l" path="res://sound_effects/sound_effects.gd" id="1_ad7ko"]
+[ext_resource type="AudioStream" uid="uid://l8f8coxg0jc4" path="res://assets/kenney_interface-sounds/Audio/drop_003.ogg" id="2_4y5q6"]
+[ext_resource type="AudioStream" uid="uid://cl4ej17y4jkuf" path="res://assets/kenney_interface-sounds/Audio/drop_002.ogg" id="3_w6pjj"]
+[ext_resource type="AudioStream" uid="uid://dhvqcpnruo612" path="res://assets/kenney_interface-sounds/Audio/drop_001.ogg" id="4_q4cgo"]
+
+[node name="SoundEffects" type="Node"]
+script = ExtResource("1_ad7ko")
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("2_4y5q6")
+
+[node name="AudioStreamPlayer2" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("3_w6pjj")
+
+[node name="AudioStreamPlayer3" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("4_q4cgo")

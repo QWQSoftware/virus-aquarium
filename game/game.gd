@@ -1,6 +1,9 @@
 extends Node3D
 
 @onready
+var sound_effects : SoundEffects = $SoundEffects
+
+@onready
 var light : DirectionalLight3D = $DirectionalLight3D
 
 @onready
@@ -183,7 +186,7 @@ func update_debug_multimesh_from_surface_points(mm: MultiMesh) -> void:
 func _ready() -> void:
 	# 示例：启动时填充 multimesh（每个实例使用统一缩放 0.1）
 	#fill_multimesh_from_mediums(1.0, 0, 1.0)
-
+	Creature.sound_effects = sound_effects
 	## 创建一个示例 Creature 并加入 creatures 列表（用于运行时测试）
 
 	

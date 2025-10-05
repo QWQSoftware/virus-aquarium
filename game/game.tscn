@@ -1,13 +1,16 @@
-[gd_scene load_steps=23 format=3 uid="uid://0rfytu81flit"]
+[gd_scene load_steps=26 format=3 uid="uid://0rfytu81flit"]
 
 [ext_resource type="Script" uid="uid://cy6lpo27737dh" path="res://game/game.gd" id="1_dxrkv"]
 [ext_resource type="PackedScene" uid="uid://6vhw6mex20aw" path="res://camera/camera.tscn" id="1_vasa2"]
+[ext_resource type="PackedScene" uid="uid://ciig6xycycyv7" path="res://ui/intro.tscn" id="2_3vho3"]
 [ext_resource type="ArrayMesh" uid="uid://bkrtltkpqk4i6" path="res://assets/medium_meshes/medium_01.res" id="2_4fuuu"]
+[ext_resource type="PackedScene" uid="uid://cxkh88b0oaihq" path="res://sound_effects/sound_effects.tscn" id="2_j8tme"]
 [ext_resource type="PackedScene" uid="uid://c1iwm1a8kdhqm" path="res://ui/closest_creature_ui.tscn" id="2_y36n6"]
 [ext_resource type="ArrayMesh" uid="uid://cm1kaufixpk0g" path="res://assets/medium_meshes/medium_02.res" id="3_dxrkv"]
 [ext_resource type="ArrayMesh" uid="uid://ud6uo2kgjhxt" path="res://assets/medium_meshes/medium_03.res" id="4_dakft"]
 [ext_resource type="Shader" uid="uid://deyqdio76qmdu" path="res://assets/viruse_meshes/virus.gdshader" id="6_u5opy"]
 [ext_resource type="ArrayMesh" uid="uid://bl8krj02o3d40" path="res://assets/viruse_meshes/ico_sphere_x1.res" id="7_u5opy"]
+[ext_resource type="AudioStream" uid="uid://d2fqkx7g1qe7e" path="res://assets/music/Untitled.mp3" id="9_l8g03"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4fuuu"]
 sky_top_color = Color(0.1507276, 0.36575258, 1, 1)
@@ -71,6 +74,10 @@ process_thread_group = 2
 process_thread_group_order = 0
 process_thread_messages = 0
 script = ExtResource("1_dxrkv")
+
+[node name="Intro" parent="." instance=ExtResource("2_3vho3")]
+
+[node name="SoundEffects" parent="." instance=ExtResource("2_j8tme")]
 
 [node name="ClosestCreatureUi" parent="." instance=ExtResource("2_y36n6")]
 process_thread_group = 1
@@ -162,3 +169,7 @@ multimesh = SubResource("MultiMesh_dxrkv")
 [node name="DebugMultiMeshInstance3D" type="MultiMeshInstance3D" parent="."]
 material_override = SubResource("ShaderMaterial_y36n6")
 multimesh = SubResource("MultiMesh_l8g03")
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("9_l8g03")
+autoplay = true
