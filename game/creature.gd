@@ -28,6 +28,8 @@ static var world_surface_normals: Array[Vector3] = []
 static var world_surface_types: Array[int] = []
 static var world_surface_light_levels: Array[int] = []
 static var world_surface_point_is_attached: Array[bool] = []
+# 用户手动屏蔽的附着点（通过 block 功能设置，不会被 validate_and_fix_attachment_state 重置）
+static var world_surface_point_is_blocked: Array[bool] = []
 
 # 全局光照输入向量（表示光线传播方向，不是指向光源）
 # 默认设置：从东南方向45度角照射（模拟下午阳光）
@@ -155,9 +157,13 @@ static func set_no_light() -> void:
 
 # 验证并修复附着点状态不一致问题
 static func validate_and_fix_attachment_state() -> void:
-	# 重置所有附着点状态
+	# 重置附着点状态，但保留用户手动屏蔽的点
 	for i in range(world_surface_point_is_attached.size()):
-		world_surface_point_is_attached[i] = false
+		# 如果点被用户屏蔽，则保持为 true；否则重置为 false
+		if i < world_surface_point_is_blocked.size() and world_surface_point_is_blocked[i]:
+			world_surface_point_is_attached[i] = true  # 保持屏蔽状态
+		else:
+			world_surface_point_is_attached[i] = false  # 重置为可用
 	
 	# 重新标记所有活着的生物占用的附着点
 	for c in creatures:

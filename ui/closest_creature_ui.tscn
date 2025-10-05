@@ -10,5 +10,8 @@ font_size = 24
 [node name="ClosestCreatureUi" type="Label"]
 offset_right = 1.0
 offset_bottom = 23.0
+text = "qqqqqq
+
+qqqqq"
 label_settings = SubResource("LabelSettings_lqtlu")
 script = ExtResource("1_hef0w")

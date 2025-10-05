@@ -175,8 +175,13 @@ func update_debug_multimesh_from_surface_points(mm: MultiMesh) -> void:
 		mm.set_instance_transform(i, t)
 		# color by attached state
 		var col: Color = Color(0.6, 0.6, 0.6, 1.0) # free = grey
-		if i < attached.size() and attached[i]:
-			col = Color(1.0, 0.0, 0.0, 1.0) # occupied = red
+		
+		# 首先检查是否被用户屏蔽
+		if i < Creature.world_surface_point_is_blocked.size() and Creature.world_surface_point_is_blocked[i]:
+			col = Color(0.0, 0.0, 1.0, 1.0) # blocked by user = blue
+		elif i < attached.size() and attached[i]:
+			# 如果不是被用户屏蔽，但 attached 为 true，则应该是被生物占用
+			col = Color(1.0, 0.0, 0.0, 1.0) # occupied by creature = red
 		if mm.has_method("set_instance_color"):
 			mm.set_instance_color(i, col)
 		# custom normal
@@ -211,6 +216,7 @@ func _ready() -> void:
 		Creature.world_surface_points.append(s["position"])
 		Creature.world_surface_normals.append(s["normal"])
 		Creature.world_surface_point_is_attached.append(false)
+		Creature.world_surface_point_is_blocked.append(false)
 
 	# Build spatial indexes initially
 	Creature.rebuild_surface_octree()
@@ -424,6 +430,80 @@ func _input(event: InputEvent) -> void:
 			print("[INPUT] Removed %d creatures in ball range" % removed_count)
 		else:
 			print("[INPUT] No creatures found in ball range to remove")
+		return
+	
+	# 阻止功能：屏蔽球体范围内的附着点
+	if(event.is_action_pressed("block")):
+		var target_range = camera.BallRadius
+		var pos = camera.BallRangeMesh.global_transform.origin
+		var blocked_count = 0
+		
+		# 确保 blocked 数组大小与 surface_points 数组一致
+		while Creature.world_surface_point_is_blocked.size() < Creature.world_surface_points.size():
+			Creature.world_surface_point_is_blocked.append(false)
+		
+		for i in range(Creature.world_surface_points.size()):
+			var p = Creature.world_surface_points[i]
+			
+			# 检查附着点是否在目标范围内
+			if p.distance_to(pos) <= target_range:
+				# 如果附着点未被屏蔽，则屏蔽它
+				if not Creature.world_surface_point_is_blocked[i]:
+					Creature.world_surface_point_is_blocked[i] = true
+					# 同时设置 attached 状态以立即生效
+					if i < Creature.world_surface_point_is_attached.size():
+						Creature.world_surface_point_is_attached[i] = true
+					else:
+						# 扩展数组大小如果需要
+						while Creature.world_surface_point_is_attached.size() <= i:
+							Creature.world_surface_point_is_attached.append(false)
+						Creature.world_surface_point_is_attached[i] = true
+					blocked_count += 1
+		
+		if blocked_count > 0:
+			print("[INPUT] Blocked %d attachment points in ball range" % blocked_count)
+		else:
+			print("[INPUT] No available attachment points found in ball range to block")
+		return
+	
+	# 解除阻止功能：解除屏蔽球体范围内的附着点
+	if(event.is_action_pressed("unblock")):
+		var target_range = camera.BallRadius
+		var pos = camera.BallRangeMesh.global_transform.origin
+		var unblocked_count = 0
+		
+		# 确保 blocked 数组大小与 surface_points 数组一致
+		while Creature.world_surface_point_is_blocked.size() < Creature.world_surface_points.size():
+			Creature.world_surface_point_is_blocked.append(false)
+		
+		for i in range(Creature.world_surface_points.size()):
+			var p = Creature.world_surface_points[i]
+			
+			# 检查附着点是否在目标范围内
+			if p.distance_to(pos) <= target_range:
+				# 如果附着点被用户屏蔽，则解除屏蔽
+				if i < Creature.world_surface_point_is_blocked.size() and Creature.world_surface_point_is_blocked[i]:
+					Creature.world_surface_point_is_blocked[i] = false
+					
+					# 检查该附着点是否真的被生物占用
+					var is_occupied_by_creature = false
+					for creature in Creature.creatures:
+						if creature != null and creature.is_alive:
+							# 检查多种占用情况
+							if creature.now_attached_id == i or creature.attachments.has(i) or (creature.is_reproducing and creature._plant_repro_found_points.has(i)):
+								is_occupied_by_creature = true
+								break
+					
+					# 只有在没有生物占用时才解除 attached 状态
+					if not is_occupied_by_creature and i < Creature.world_surface_point_is_attached.size():
+						Creature.world_surface_point_is_attached[i] = false
+					
+					unblocked_count += 1
+		
+		if unblocked_count > 0:
+			print("[INPUT] Unblocked %d attachment points in ball range" % unblocked_count)
+		else:
+			print("[INPUT] No blocked attachment points found in ball range to unblock")
 		return
 
 func _physics_process(delta: float) -> void:
