@@ -1,13 +1,48 @@
 extends Label
 
-# 显示与当前摄像机距离最近生物的实时信息（年龄、能量、血量等）
-# 使用方法：在场景中添加一个 Label 节点并把此脚本附加到它。
+# 显示与给定位置距离最近生物的实时信息（年龄、能量、血量等），并可选地在屏幕上显示目标指示器
+# 使用方法：在场景中添加一个 Label 节点并把此脚本附加到它，然后通过 set_reference_position() 函数设置参考位置。
+# 可选：将一个 Control 节点分配给 target_indicator 属性来显示目标生物的屏幕位置指示器。
 # 要求：项目中存在全局可访问的 `Creature` 类（带有静态数组 `Creature.creatures`）
 
-@export var update_rate: float = 0.01 # 信息刷新间隔（秒）
-@export var max_distance: float = 10.0 # 搜索最近生物的最大距离
+@export var max_distance: float = 50.0 # 搜索最近生物的最大距离
+@export var target_indicator: Control # 用于显示目标生物位置的UI控件（可选）
 
-var _acc: float = 0.0
+@export var debug_mesh_3d :MeshInstance3D
+
+var _reference_position: Vector3 = Vector3.ZERO # 用于计算距离的参考位置
+var _current_target_creature: Creature = null # 当前目标生物
+
+# 设置参考位置的函数，用于信号连接
+func set_reference_position(pos: Vector3) -> void:
+	_reference_position = pos
+
+# 获取生物的实际世界位置（优先使用世界位置数组）
+func _get_creature_world_position(creature: Creature) -> Vector3:
+	if not creature:
+		if OS.is_debug_build():
+			print("[DEBUG] _get_creature_world_position: creature is null")
+		return Vector3.ZERO
+	
+	# 首先尝试从Node3D获取实时位置（如果Creature继承自Node3D）
+	if creature.has_method("get_global_position") or "global_position" in creature:
+		var node_pos = creature.global_position
+		if OS.is_debug_build():
+			print("[DEBUG] Using global_position for creature %d: %s" % [creature.index, str(node_pos)])
+		return node_pos
+	
+	# 优先使用静态位置数组（若存在且索引有效）
+	if creature.index >= 0 and creature.index < Creature.creatures_world_positions.size():
+		var world_pos = Creature.creatures_world_positions[creature.index]
+		if OS.is_debug_build():
+			print("[DEBUG] Using world_positions array for creature %d: %s" % [creature.index, str(world_pos)])
+		return world_pos
+	
+	# 回退到实例的位置字段
+	var instance_pos = creature.position
+	if OS.is_debug_build():
+		print("[DEBUG] Using creature.position for creature %d: %s (world_positions size: %d)" % [creature.index, str(instance_pos), Creature.creatures_world_positions.size()])
+	return instance_pos
 
 func _ready() -> void:
 	# 现在这个脚本直接继承自Label，所以不需要创建子Label
@@ -15,43 +50,71 @@ func _ready() -> void:
 	self.text = ""
 	self.visible = true
 
-func _process(delta: float) -> void:
-	_acc += delta
-	if _acc >= update_rate:
-		_acc = 0.0
-		_update_closest_creature()
+func _process(_delta: float) -> void:
+	_update_closest_creature()
 
 func _update_closest_creature() -> void:
-	# 获取当前活动的 3D 摄像机
-	var cam: Camera3D = get_viewport().get_camera_3d()
-	if not cam:
-		# 没有摄像机时隐藏信息
-		self.text = ""
-		return
-	var cam_pos: Vector3 = cam.global_transform.origin
+	# 使用给定的参考位置而不是相机位置
+	var reference_pos: Vector3 = _reference_position
+	
+	# 如果没有设置参考位置，使用相机位置作为参考
+	if reference_pos == Vector3.ZERO:
+		var cam: Camera3D = get_viewport().get_camera_3d()
+		if cam:
+			reference_pos = cam.global_position
+		else:
+			if OS.is_debug_build():
+				print("[DEBUG] No reference position and no camera found")
+			return
 
 	var best_creature: Creature = null
 	var best_dist: float = 1e20
+	var total_creatures: int = 0
+	var alive_creatures: int = 0
+	var creatures_in_range: int = 0
 
 	# 遍历全局生物列表，寻找距离最近且存活的生物
 	for i in range(Creature.creatures.size()):
 		var c = Creature.creatures[i]
+		total_creatures += 1
+		
 		if not c:
+			# 调试：记录空指针
 			continue
+			
 		if not c.is_alive:
+			# 调试：记录非存活生物
 			continue
-		# 优先使用静态位置数组（若存在），否则使用实例的位置字段
-		var pos: Vector3 = c.position
-		if c.index >= 0 and c.index < Creature.creatures_world_positions.size():
-			pos = Creature.creatures_world_positions[c.index]
-		var d = cam_pos.distance_to(pos)
+			
+		alive_creatures += 1
+		
+		# 获取生物的实际世界位置
+		var pos: Vector3 = _get_creature_world_position(c)
+		var d = reference_pos.distance_to(pos)
+		
+		# 调试：检查距离是否在范围内
+		if d <= max_distance:
+			creatures_in_range += 1
+		
 		if d < best_dist and d <= max_distance:
 			best_dist = d
 			best_creature = c
 
+	# 添加调试信息
+	if OS.is_debug_build():
+		print("[DEBUG] Reference pos: %s, Max distance: %.1f" % [str(reference_pos), max_distance])
+		print("[DEBUG] Total creatures: %d, Alive: %d, In range: %d" % [total_creatures, alive_creatures, creatures_in_range])
+		if best_creature:
+			var best_pos = _get_creature_world_position(best_creature)
+			print("[DEBUG] Best creature %d found at distance: %.2fm, position: %s" % [best_creature.index, best_dist, str(best_pos)])
+		else:
+			print("[DEBUG] No creature found within range")
+
 	# 如果没有找到合适的生物，清空显示
 	if not best_creature:
+		_current_target_creature = null
 		call_deferred("set_text", "")
+		_update_target_indicator()
 		return
 
 	# 从生物中提取信息并格式化显示
@@ -148,3 +211,58 @@ func _update_closest_creature() -> void:
 	
 	var info_text = "\n".join(info_lines)
 	call_deferred("set_text", info_text)
+	
+	# 更新目标指示器位置
+	_current_target_creature = best_creature
+	_update_target_indicator()
+
+# 更新目标指示器在屏幕上的位置
+func _update_target_indicator() -> void:
+	if not target_indicator:
+		return
+		
+	if not _current_target_creature:
+		# 没有目标时隐藏指示器
+		target_indicator.visible = false
+		return
+	
+	# 获取当前活动的3D摄像机
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	if not cam:
+		target_indicator.visible = false
+		return
+	
+	# 获取目标生物的3D位置
+	var target_pos_3d: Vector3 = _get_creature_world_position(_current_target_creature)
+	
+	# 检查目标是否在相机前方
+	var cam_transform = cam.get_camera_transform()
+	var to_target = target_pos_3d - cam_transform.origin
+	if cam_transform.basis.z.dot(to_target) > 0:
+		# 目标在相机后方，隐藏指示器
+		target_indicator.visible = false
+		return
+	
+	# 将3D位置投影到屏幕2D坐标
+	var screen_pos: Vector2 = cam.unproject_position(target_pos_3d)
+	
+	# 调试信息
+	if OS.is_debug_build():
+		print("[DEBUG] Target 3D pos: %s, Screen pos: %s" % [str(target_pos_3d), str(screen_pos)])
+		print("[DEBUG] Camera pos: %s, Camera forward: %s" % [str(cam_transform.origin), str(-cam_transform.basis.z)])
+	
+	# 检查目标是否在相机视野内
+	var viewport_size = get_viewport().get_visible_rect().size
+	if screen_pos.x >= 0 and screen_pos.x <= viewport_size.x and screen_pos.y >= 0 and screen_pos.y <= viewport_size.y:
+		# 目标在屏幕内，显示指示器
+		target_indicator.visible = true
+		target_indicator.position = screen_pos - target_indicator.size * 0.5  # 居中对齐
+		
+		if OS.is_debug_build():
+			print("[DEBUG] Indicator positioned at: %s (size: %s)" % [str(target_indicator.position), str(target_indicator.size)])
+	else:
+		# 目标在屏幕外，可以选择隐藏或显示在屏幕边缘
+		target_indicator.visible = false
+		
+		if OS.is_debug_build():
+			print("[DEBUG] Target out of screen bounds. Viewport size: %s" % str(viewport_size))

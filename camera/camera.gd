@@ -4,6 +4,7 @@ class_name FreeLookCamera extends Camera3D
 signal ray_collision_detected(collision_point: Vector3, collider: Node3D)
 signal ray_collision_simple()  # 无参数的碰撞信号
 signal ray_collision_lost()
+signal ray_collision_position_updated(collision_point: Vector3)  # 实时更新碰撞位置信号
 signal ball_size_updated(radius: int)  # 球体大小更新信号
 
 @onready
@@ -125,11 +126,14 @@ func _process(delta):
 		# Only show ball when there's a collision
 		BallRangeMesh.visible = true
 		# Use global_position instead of global_transform.origin to preserve scale
-		BallRangeMesh.global_position = RayCast.get_collision_point()
+		var collision_point = RayCast.get_collision_point()
+		BallRangeMesh.global_position = collision_point
+		
+		# 实时发射碰撞位置更新信号（每帧都发射）
+		ray_collision_position_updated.emit(collision_point)
 		
 		# 发射碰撞检测信号（仅在状态变化时）
 		if not _was_colliding:
-			var collision_point = RayCast.get_collision_point()
 			var collider = RayCast.get_collider()
 			ray_collision_detected.emit(collision_point, collider)
 			ray_collision_simple.emit()  # 同时发射无参数信号
