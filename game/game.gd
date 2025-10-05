@@ -26,6 +26,8 @@ var mediums : Array = [
 	$Medium07
 ]
 
+@onready
+var speed_label : Label = $MarginContainer/SpeedLabel
 
 # Debug options for visualizing samples
 const DEBUG_SHOW_SAMPLES: bool = true
@@ -231,11 +233,19 @@ func _ready() -> void:
 	
 	Creature.world_light_direction = -light.global_basis.z
 	
+	# 初始化速度标签
+	if speed_label:
+		speed_label.text = "X" + String.num(speed_radio)
+	
 	return
 
 var closest_ui = null
 
-var speed_radio : int = 1
+# Game speed and pause control
+var speed_radio : float = 1.0
+var is_paused : bool = false
+var origin_speed_radio : float = 0.0
+var radio_text : String = "X1"
 
 # debug visualization scale for surface points (meters)
 # default increased so debug points are visible without Inspector tweaks
@@ -249,29 +259,70 @@ var _creatures_octree_acc: float = 0.0
 var _attachment_validation_timer: float = 0.0
 
 func _input(event: InputEvent) -> void:
-	if(event.is_action("speed_up")):
-		speed_radio *= 2
-	if(event.is_action("speed_down")):
-		speed_radio /= 2
-		if speed_radio < 1:
-			speed_radio = 1
+	# 处理暂停切换
+	if(event.is_action_pressed("pause")):
+		is_paused = !is_paused
+		if(is_paused):
+			origin_speed_radio = speed_radio
+			speed_radio = 0
+			if speed_label:
+				speed_label.text = "||"
+			print("[INPUT] Game paused (original speed: X%s)" % String.num(origin_speed_radio))
+		else:
+			speed_radio = origin_speed_radio
+			radio_text = String.num(speed_radio)
+			if speed_label:
+				speed_label.text = "X" + radio_text
+			print("[INPUT] Game unpaused (speed: X%s)" % radio_text)
+		return  # 暂停切换后直接返回，避免其他逻辑干扰
+
+	# 只有在非暂停状态下才允许调整速度
+	if not is_paused:
+		var speed_changed = false
+		
+		if(event.is_action_pressed("speed_up")):
+			speed_radio *= 2
+			if speed_radio > 64:
+				speed_radio = 64
+			speed_changed = true
+			
+		if(event.is_action_pressed("speed_down")):
+			speed_radio /= 2
+			if speed_radio < 0.25:
+				speed_radio = 0.25
+			speed_changed = true
+		
+		# 只有在速度发生变化时才更新标签
+		if speed_changed:
+			radio_text = String.num(speed_radio)
+			if speed_label:
+				speed_label.text = "X" + radio_text
 
 	# 在范围内的所有空闲附着点放置新生物
-	if(event.is_action("put_new_creatures")):
+	if(event.is_action_pressed("put_new_creatures")):
 		var target_range = camera.BallRadius
 		var pos = camera.BallRangeMesh.global_transform.origin
+		var placed_count = 0
+		
 		for i in range(Creature.world_surface_points.size()):
 			var p = Creature.world_surface_points[i]
-			if Creature.world_surface_point_is_attached[i]:
+			
+			# 检查附着点是否已被占用
+			if i >= Creature.world_surface_point_is_attached.size() or Creature.world_surface_point_is_attached[i]:
 				continue
+				
+			# 检查是否在目标范围内
 			if p.distance_to(pos) <= target_range:
-				# pre-mark the point as attached to avoid double-placement races
-				if i < Creature.world_surface_point_is_attached.size():
-					if Creature.world_surface_point_is_attached[i]:
-						continue
-					Creature.world_surface_point_is_attached[i] = true
+				# 预先标记附着点为已占用，避免重复放置
+				Creature.world_surface_point_is_attached[i] = true
+				
+				# 创建新生物并附着到该点
 				var c = Creature.new(GenomeUtils.random_plant_genome(), Transform3D.IDENTITY)
 				c.attach_to_surface_point(i)
+				placed_count += 1
+		
+		if placed_count > 0:
+			print("[INPUT] Placed %d new creatures in ball range" % placed_count)
 
 		
 	
@@ -289,21 +340,32 @@ func _input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	# First update creature simulation/state
-	for c in Creature.creatures:
-		c.update(delta * speed_radio)
-
-	# Remove dead creatures after update so subsequent rendering/instancing matches live set
-	Creature.cleanup_dead()
+	# 获取实际的时间步长（考虑速度倍率和暂停状态）
+	var effective_delta = delta * speed_radio
 	
-	# Periodically validate and fix attachment states (every 5 seconds)
-	_attachment_validation_timer += delta
-	if _attachment_validation_timer >= 5.0:
-		_attachment_validation_timer = 0.0
-		Creature.cleanup_invalid_reproduction_states()
-		Creature.validate_and_fix_attachment_state()
+	# 只有在非暂停状态下才更新生物逻辑
+	if not is_paused and speed_radio > 0:
+		# Update creature simulation/state
+		for c in Creature.creatures:
+			c.update(effective_delta)
 
-	# Then reflect creatures into the MultiMesh each frame
+		# Remove dead creatures after update so subsequent rendering/instancing matches live set
+		Creature.cleanup_dead()
+		
+		# Periodically validate and fix attachment states (every 5 seconds of real time)
+		_attachment_validation_timer += delta  # 使用真实时间，不受速度影响
+		if _attachment_validation_timer >= 5.0:
+			_attachment_validation_timer = 0.0
+			Creature.cleanup_invalid_reproduction_states()
+			Creature.validate_and_fix_attachment_state()
+
+		# Trigger periodic rebuild of the creatures octree using accumulator
+		_creatures_octree_acc += effective_delta  # 使用游戏时间
+		if _creatures_octree_acc >= creatures_octree_rebuild_interval:
+			_creatures_octree_acc = 0.0
+			Creature.rebuild_creatures_octree()
+
+	# 渲染更新始终执行（即使暂停也要显示当前状态）
 	var mm = null
 	if multiMeshInstance:
 		mm = multiMeshInstance.multimesh
@@ -317,12 +379,5 @@ func _physics_process(delta: float) -> void:
 	# Ensure instance count matches creatures
 	update_multimesh_from_creatures(mm, Creature.creatures)
 
-	if DEBUG_SHOW_SAMPLES:
+	if DEBUG_SHOW_SAMPLES and not is_paused:
 		print("[PHYSICS] creatures_count=", Creature.creatures.size(), " multimesh_count=", mm.instance_count)
-
-	# Trigger periodic rebuild of the creatures octree using accumulator
-	_creatures_octree_acc += delta
-	if _creatures_octree_acc >= creatures_octree_rebuild_interval:
-		_creatures_octree_acc = 0.0
-		Creature.rebuild_creatures_octree()
-	pass
