@@ -281,7 +281,22 @@ var _attachment_validation_timer: float = 0.0
 var max_creature_size_ever: float = 0.0
 # 状态报告已移至Mission界面直接显示，无需定时器
 
+func _toggle_fullscreen() -> void:
+	# Godot 4: 切换窗口模式
+	var win := get_window()
+	if win:
+		if win.mode == Window.MODE_FULLSCREEN:
+			win.mode = Window.MODE_WINDOWED
+			print("[WINDOW] Switched to windowed mode")
+		else:
+			win.mode = Window.MODE_FULLSCREEN
+			print("[WINDOW] Switched to fullscreen mode")
+
 func _input(event: InputEvent) -> void:
+	# F11 - 切换全屏
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F11:
+		_toggle_fullscreen()
+		return
 	# 处理暂停切换
 	if(event.is_action_pressed("pause")):
 		# 触发暂停操作的回调

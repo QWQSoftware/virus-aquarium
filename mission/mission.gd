@@ -11,7 +11,6 @@ var game_node: Node3D = null
 enum MissionType {
 	TOTAL_POPULATION,    # 总生物数量达到目标
 	MAX_CREATURE_SIZE,   # 最大生物体型达到目标
-	PLANT_POPULATION,    # 植物数量达到目标
 	REPRODUCE_COUNT,     # 繁殖次数达到目标
 	AVERAGE_SIZE         # 平均体型达到目标
 }
@@ -59,13 +58,6 @@ var mission_templates: Array[Dictionary] = [
 		"multiplier_range": [1.0, 1.7],
 		"description_template": "Evolve creature to %.1fm size",
 		"reward": "Evolution breakthrough!"
-	},
-	{
-		"type": MissionType.PLANT_POPULATION,
-		"base_target": 5,
-		"multiplier_range": [1.5, 2.5],
-		"description_template": "Cultivate %d plant organisms",
-		"reward": "Ecosystem established!"
 	},
 	{
 		"type": MissionType.AVERAGE_SIZE,
@@ -193,7 +185,7 @@ func _generate_mission_from_template(template: Dictionary) -> Mission:
 	var description = ""
 	
 	match mission_type:
-		MissionType.TOTAL_POPULATION, MissionType.PLANT_POPULATION:
+		MissionType.TOTAL_POPULATION:
 			description = desc_template % int(target)
 		MissionType.MAX_CREATURE_SIZE, MissionType.AVERAGE_SIZE:
 			description = desc_template % target
@@ -211,7 +203,12 @@ func _generate_target_from_template(type: MissionType, base_target: float, multi
 	var adjusted_base = max(base_target, current_value * 1.2) * difficulty_factor
 	
 	var multiplier = randf_range(multiplier_range[0], multiplier_range[1])
-	return adjusted_base * multiplier
+	var target = adjusted_base * multiplier
+	
+	# 限制“总生物数量”类任务的目标小于100
+	if type == MissionType.TOTAL_POPULATION:
+		target = min(target, 99.0)
+	return target
 
 func _get_current_value_for_type(type: MissionType) -> float:
 	"""获取指定任务类型的当前值"""
@@ -220,8 +217,6 @@ func _get_current_value_for_type(type: MissionType) -> float:
 			return float(Creature.creatures.size())
 		MissionType.MAX_CREATURE_SIZE:
 			return _get_current_max_creature_size()
-		MissionType.PLANT_POPULATION:
-			return float(Creature.get_current_plant_count())
 		MissionType.AVERAGE_SIZE:
 			return _get_current_average_creature_size()
 		_:
@@ -260,9 +255,6 @@ func _update_mission_progress() -> void:
 			var max_size = _get_current_max_creature_size()
 			current_mission.current_value = max_size
 			max_creature_size_ever = max(max_creature_size_ever, max_size)
-		
-		MissionType.PLANT_POPULATION:
-			current_mission.current_value = float(Creature.get_current_plant_count())
 		
 		MissionType.AVERAGE_SIZE:
 			current_mission.current_value = _get_current_average_creature_size()
