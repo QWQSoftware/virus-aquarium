@@ -59,8 +59,6 @@ use_custom_data = true
 mesh = ExtResource("7_u5opy")
 
 [sub_resource type="SphereMesh" id="SphereMesh_y36n6"]
-radius = 0.1
-height = 0.2
 
 [sub_resource type="MultiMesh" id="MultiMesh_l8g03"]
 transform_format = 1

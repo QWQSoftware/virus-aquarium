@@ -1,6 +1,9 @@
 extends Node3D
 
 @onready
+var light : DirectionalLight3D = $DirectionalLight3D
+
+@onready
 var multiMeshInstance = $MultiMeshInstance3D
 
 @onready
@@ -31,7 +34,7 @@ const DEBUG_MAX_SAMPLES: int = 8
 # medium properties
 
 
-func fill_multimesh_from_mediums(mm_instance: MultiMeshInstance3D, samples = null, samples_per_unit: float = 1.0, total_samples: int = 0, _instance_scale: float = 0.1) -> void:
+func fill_multimesh_from_mediums(mm_instance: MultiMeshInstance3D, samples = null, samples_per_unit: float = 1.0, total_samples: int = 0) -> void:
 	# 填充 MultiMeshInstance：如果传入 samples（位置/法线数组），优先使用它；否则从 mediums 采样
 	if not mm_instance:
 		return
@@ -139,6 +142,39 @@ func update_multimesh_from_creatures(mm: MultiMesh, creatures_list: Array) -> vo
 		if mm.has_method("set_instance_color"):
 			mm.set_instance_color(i, col)
 
+
+### Debug: update a MultiMesh from world surface points and color by attachment state
+func update_debug_multimesh_from_surface_points(mm: MultiMesh) -> void:
+	if mm == null:
+		return
+	# ensure the MultiMesh has a mesh assigned on the MultiMeshInstance
+	# the mesh defines the visible geometry for each instance; if missing nothing will be drawn
+	if debugMultiMeshInstance == null or debugMultiMeshInstance.multimesh == null:
+		print("[DEBUG] debugMultiMeshInstance has no mesh assigned - attach a small sphere/circle mesh to see surface points")
+		return
+	var points = Creature.world_surface_points
+	var normals = Creature.world_surface_normals
+	var attached = Creature.world_surface_point_is_attached
+	mm.instance_count = points.size()
+	for i in range(points.size()):
+		var pos: Vector3 = points[i]
+		var n_world: Vector3 = Vector3.UP
+		if i < normals.size():
+			n_world = normals[i]
+		var inst_scale_vec = Vector3.ONE * max(0.0001, debug_point_scale)
+		var b = _build_basis_from_normal(n_world, inst_scale_vec)
+		var t = Transform3D(b, pos)
+		mm.set_instance_transform(i, t)
+		# color by attached state
+		var col: Color = Color(0.6, 0.6, 0.6, 1.0) # free = grey
+		if i < attached.size() and attached[i]:
+			col = Color(1.0, 0.0, 0.0, 1.0) # occupied = red
+		if mm.has_method("set_instance_color"):
+			mm.set_instance_color(i, col)
+		# custom normal
+		var enc = _encode_instance_normal_from_basis(b, n_world)
+		mm.set_instance_custom_data(i, enc)
+
 # creature properties
 
 
@@ -161,7 +197,7 @@ func _ready() -> void:
 				# store source mesh so we can convert normals back to mesh-local space later
 				all_samples.append({"position": s["position"], "normal": s["normal"], "source": m})
 
-		fill_multimesh_from_mediums(debugMultiMeshInstance, all_samples, 0.2, 0, 0.01)
+	fill_multimesh_from_mediums(debugMultiMeshInstance, all_samples, 0.2, 0)
 
 	for s in all_samples:
 		Creature.world_surface_points.append(s["position"])
@@ -172,6 +208,14 @@ func _ready() -> void:
 	Creature.rebuild_surface_octree()
 	Creature.rebuild_creatures_octree()
 
+	# Ensure debug MultiMeshInstance has a mesh so debug points are visible
+	if debugMultiMeshInstance and debugMultiMeshInstance.multimesh == null:
+		var sphere = SphereMesh.new()
+		# Make the sphere unit radius; instance scale will control final size
+		sphere.radius = 1.0
+		sphere.height = 0.5
+		debugMultiMeshInstance.mesh = sphere
+
 	# var newCreature = Creature.new(GenomeUtils.random_plant_genome(), Transform3D.IDENTITY)
 	# newCreature.attach_to_surface_point(0)
 
@@ -180,16 +224,26 @@ func _ready() -> void:
 	var ui_inst = ui_scene.instantiate()
 	add_child(ui_inst)
 	self.closest_ui = ui_inst
-
+	
+	
+	Creature.world_light_direction = -light.global_basis.z
+	
 	return
 
 var closest_ui = null
 
 var speed_radio : int = 1
 
+# debug visualization scale for surface points (meters)
+# default increased so debug points are visible without Inspector tweaks
+@export var debug_point_scale: float = 0.1
+
 # How often (seconds) to rebuild the creatures octree when creatures move frequently
 @export var creatures_octree_rebuild_interval: float = 0.5
 var _creatures_octree_acc: float = 0.0
+
+# How often (seconds) to validate and fix attachment states
+var _attachment_validation_timer: float = 0.0
 
 func _input(event: InputEvent) -> void:
 	if(event.is_action("speed_up")):
@@ -238,6 +292,13 @@ func _physics_process(delta: float) -> void:
 
 	# Remove dead creatures after update so subsequent rendering/instancing matches live set
 	Creature.cleanup_dead()
+	
+	# Periodically validate and fix attachment states (every 5 seconds)
+	_attachment_validation_timer += delta
+	if _attachment_validation_timer >= 5.0:
+		_attachment_validation_timer = 0.0
+		Creature.cleanup_invalid_reproduction_states()
+		Creature.validate_and_fix_attachment_state()
 
 	# Then reflect creatures into the MultiMesh each frame
 	var mm = null
@@ -245,6 +306,10 @@ func _physics_process(delta: float) -> void:
 		mm = multiMeshInstance.multimesh
 	if mm == null:
 		return
+
+	# update debug multimesh (shows attachment occupancy)
+	if debugMultiMeshInstance and debugMultiMeshInstance.multimesh:
+		update_debug_multimesh_from_surface_points(debugMultiMeshInstance.multimesh)
 
 	# Ensure instance count matches creatures
 	update_multimesh_from_creatures(mm, Creature.creatures)
