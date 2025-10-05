@@ -156,6 +156,7 @@ script = ExtResource("5_hb504")
 process_thread_group = 1
 process_thread_group_order = 0
 process_thread_messages = 0
+visible = false
 
 [node name="Intro" parent="." instance=ExtResource("2_3vho3")]
 
@@ -262,6 +263,7 @@ stream = ExtResource("9_l8g03")
 autoplay = true
 
 [connection signal="hints_hidden" from="InitHints" to="SpeedLabel" method="fade_in"]
+[connection signal="hints_hidden" from="InitHints" to="Mission" method="_fade_in"]
 [connection signal="ball_size_updated" from="Camera" to="PlayHints" method="update_radius"]
 [connection signal="ray_collision_lost" from="Camera" to="MarginContainer2/VBoxContainer/VBoxContainer" method="hide"]
 [connection signal="ray_collision_lost" from="Camera" to="PlayHints" method="hide_immediately"]

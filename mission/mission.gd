@@ -91,6 +91,49 @@ func _ready() -> void:
 	_initialize_missions()
 	_start_next_mission()
 
+# ========== UI 动画：缓入与缓出（参考 ui/init_hints.gd） ==========
+# 说明：这些方法不改变现有任务流程，仅提供可复用的渐入/渐出动画接口。
+
+func _start_fade_in_delayed(delay: float = 0.0, duration: float = 1.0) -> void:
+	"""在 delay 秒后开始淡入（对整个 MissionSystem 控件生效）"""
+	if delay > 0.0:
+		var delay_timer = get_tree().create_timer(delay)
+		delay_timer.timeout.connect(func(): _fade_in(duration))
+	else:
+		_fade_in(duration)
+
+func _fade_in(duration: float = 1.0) -> void:
+	"""淡入 Mission 面板（将 alpha 从 0 -> 1）"""
+	print("[MISSION_UI] Starting fade-in animation (duration=", duration, ")")
+	visible = true
+	modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(self, "modulate:a", 1.0, duration)
+	tween.tween_callback(func():
+		print("[MISSION_UI] Fade-in complete")
+	)
+
+func _fade_out(duration: float = 0.5, hide_on_complete: bool = false) -> void:
+	"""淡出 Mission 面板（将 alpha 从 1 -> 0）。hide_on_complete 为 true 时结束后隐藏。"""
+	print("[MISSION_UI] Starting fade-out animation (duration=", duration, ", hide=", hide_on_complete, ")")
+	modulate.a = 1.0
+	var tween := create_tween()
+	tween.tween_property(self, "modulate:a", 0.0, duration)
+	tween.tween_callback(func():
+		if hide_on_complete:
+			visible = false
+		print("[MISSION_UI] Fade-out complete")
+	)
+
+# ========== 声音播放辅助 ==========
+# 说明：按给定节点名列表优先顺序，找到第一个存在且支持 play() 的节点并播放
+func _play_first_available_sound(node_names: Array) -> void:
+	for n in node_names:
+		var node = get_node_or_null(n)
+		if node and node.has_method("play"):
+			node.play()
+			return
+
 func _process(delta: float) -> void:
 	# 检测ESC键跳过任务
 	if Input.is_action_just_pressed("skip_mission"):  # ESC键
@@ -295,7 +338,7 @@ func _get_game_status_text() -> String:
 	
 	# 获取游戏状态数据
 	var creature_count = 0
-	var plant_count = 0
+	var _plant_count = 0
 	var max_size = 0.0
 	var avg_size = 0.0
 	
@@ -303,7 +346,7 @@ func _get_game_status_text() -> String:
 		creature_count = game_node.get_current_creature_count()
 	
 	if game_node.has_method("get_current_plant_count"):
-		plant_count = game_node.get_current_plant_count()
+		_plant_count = game_node.get_current_plant_count()
 	
 	if game_node.has_method("get_current_max_creature_size"):
 		max_size = game_node.get_current_max_creature_size()
@@ -312,7 +355,7 @@ func _get_game_status_text() -> String:
 		avg_size = game_node.get_current_average_creature_size()
 	
 	status_text += "🦠 Creatures: %d\n" % creature_count
-	status_text += "🌱 Plants: %d\n" % plant_count
+	# status_text += "⭐ Viruses: %d\n" % plant_count
 	status_text += "📏 Max Size: %.2fm\n" % max_size
 	status_text += "📊 Avg Size: %.2fm" % avg_size
 	
@@ -326,15 +369,18 @@ func _complete_current_mission() -> void:
 	current_mission.is_completed = true
 	completed_missions_count += 1
 	print("[MISSION] Mission completed: %s (Total: %d)" % [current_mission.description, completed_missions_count])
-	
+
+	# 播放完成音效（若存在专用 CompleteAudioStreamPlayer 则优先，否则回退）
+	_play_first_available_sound(["CompleteAudioStreamPlayer", "AudioStreamPlayer"])
+
 	# 显示完成信息
 	var completion_text = ""
 	completion_text += "✅ MISSION COMPLETE! ✅\n\n"
 	completion_text += "Accomplished: %s\n\n" % current_mission.description
 	completion_text += "🎉 %s 🎉" % current_mission.reward_text
-	
+
 	mission_label.text = completion_text
-	
+
 	# 2秒后开始下一个任务
 	await get_tree().create_timer(2.0).timeout
 	mission_index += 1
@@ -388,8 +434,7 @@ func _handle_skip_input() -> void:
 	print("[MISSION] Proceeding with mission skip...")
 	
 	# 播放音效
-	if has_node("AudioStreamPlayer"):
-		$AudioStreamPlayer.play()
+	_play_first_available_sound(["SkipAudioStreamPlayer", "AudioStreamPlayer"])
 	
 	# 开始冷却
 	skip_cooldown_timer = skip_cooldown_duration
@@ -409,7 +454,6 @@ func get_current_mission_info() -> Dictionary:
 	"""获取当前任务信息"""
 	if not current_mission:
 		return {}
-	
 	return {
 		"type": current_mission.type,
 		"description": current_mission.description,
@@ -477,3 +521,8 @@ func get_skip_cooldown_remaining() -> float:
 func get_completed_missions_count() -> int:
 	"""获取已完成的任务总数"""
 	return completed_missions_count
+
+# 公共接口：请求跳过当前任务（供外部如 game.gd 调用）
+func skip_current_mission() -> void:
+	"""触发与 ESC 相同的跳过逻辑，带冷却与并发保护"""
+	_handle_skip_input()
