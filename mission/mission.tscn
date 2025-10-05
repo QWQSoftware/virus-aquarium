@@ -1,14 +1,13 @@
-[gd_scene load_steps=8 format=3 uid="uid://cjmrptdmunwbb"]
+[gd_scene load_steps=11 format=3 uid="uid://cjmrptdmunwbb"]
 
 [ext_resource type="FontFile" uid="uid://bvkp8wfi2o61l" path="res://assets/BoldPixels/BoldPixels.ttf" id="1_2sckc"]
+[ext_resource type="Script" uid="uid://bbbe67q2lbogo" path="res://mission/mission.gd" id="1_ugvls"]
+[ext_resource type="Texture2D" uid="uid://bsxkoy1tp6vud" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Default/keyboard_escape.png" id="3_guje3"]
+[ext_resource type="AudioStream" uid="uid://dyflojkf0x2a3" path="res://assets/kenney_interface-sounds/Audio/confirmation_001.ogg" id="3_rkvmn"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_ugvls"]
 font = ExtResource("1_2sckc")
 font_size = 64
-
-[sub_resource type="LabelSettings" id="LabelSettings_2sckc"]
-font = ExtResource("1_2sckc")
-font_size = 48
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2sckc"]
 content_margin_left = 4.0
@@ -91,17 +90,26 @@ expand_margin_top = 3.0
 expand_margin_right = 3.0
 expand_margin_bottom = 3.0
 
+[sub_resource type="LabelSettings" id="LabelSettings_sjrmx"]
+font = ExtResource("1_2sckc")
+font_size = 48
+
 [node name="Mission" type="Control"]
 layout_mode = 3
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 grow_horizontal = 0
+script = ExtResource("1_ugvls")
 
 [node name="VBoxContainer2" type="VBoxContainer" parent="."]
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 40.0
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -640.0
+offset_bottom = 496.0
+grow_horizontal = 0
 
 [node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer2"]
 layout_mode = 2
@@ -127,11 +135,23 @@ theme_override_constants/margin_top = 0
 theme_override_constants/margin_right = 64
 theme_override_constants/margin_bottom = 32
 
-[node name="Label" type="Label" parent="VBoxContainer2/VBoxContainer/MarginContainer2"]
+[node name="RichTextLabel" type="RichTextLabel" parent="VBoxContainer2/VBoxContainer/MarginContainer2"]
+custom_minimum_size = Vector2(512, 200)
 layout_mode = 2
-size_flags_horizontal = 8
-text = "MAX SIZE to 2m"
-label_settings = SubResource("LabelSettings_2sckc")
+theme_override_fonts/normal_font = ExtResource("1_2sckc")
+theme_override_fonts/bold_font = ExtResource("1_2sckc")
+theme_override_fonts/bold_italics_font = ExtResource("1_2sckc")
+theme_override_fonts/italics_font = ExtResource("1_2sckc")
+theme_override_fonts/mono_font = ExtResource("1_2sckc")
+theme_override_font_sizes/normal_font_size = 32
+theme_override_font_sizes/bold_font_size = 32
+theme_override_font_sizes/bold_italics_font_size = 32
+theme_override_font_sizes/italics_font_size = 32
+theme_override_font_sizes/mono_font_size = 32
+text = "MAX SIZE TO 12m"
+fit_content = true
+scroll_active = false
+horizontal_alignment = 2
 
 [node name="MarginContainer3" type="MarginContainer" parent="VBoxContainer2"]
 layout_mode = 2
@@ -143,6 +163,8 @@ theme_override_constants/margin_right = 64
 theme_override_constants/margin_bottom = 64
 
 [node name="Button" type="Button" parent="VBoxContainer2/MarginContainer3"]
+visible = false
+custom_minimum_size = Vector2(128, 0)
 layout_mode = 2
 size_flags_horizontal = 8
 theme_override_fonts/font = ExtResource("1_2sckc")
@@ -153,3 +175,18 @@ theme_override_styles/hover = SubResource("StyleBoxFlat_rkvmn")
 theme_override_styles/disabled = SubResource("StyleBoxFlat_guje3")
 text = "SKIP"
 alignment = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer2/MarginContainer3"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer2/MarginContainer3/HBoxContainer"]
+layout_mode = 2
+text = "SKIP"
+label_settings = SubResource("LabelSettings_sjrmx")
+
+[node name="TextureRect3" type="TextureRect" parent="VBoxContainer2/MarginContainer3/HBoxContainer"]
+layout_mode = 2
+texture = ExtResource("3_guje3")
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("3_rkvmn")

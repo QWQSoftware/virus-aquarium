@@ -1,7 +1,10 @@
 extends Node3D
 
 @onready
-var cloest_ui : Label = $MarginContainer2/ClosestCreatureUi
+var mission : MissionSystem = $Mission
+
+@onready
+var cloest_ui : Label = $MarginContainer2/VBoxContainer/ClosestCreatureUi
 
 @onready
 var sound_effects : SoundEffects = $SoundEffects
@@ -30,7 +33,7 @@ var speed_label : Label = $SpeedLabel/HBoxContainer/SpeedLabel
 var speed_label_control : Control = $SpeedLabel
 
 @onready
-var cloest_creature_ui : CloestCreatureUI = $MarginContainer2/ClosestCreatureUi
+var cloest_creature_ui : CloestCreatureUI = $MarginContainer2/VBoxContainer/ClosestCreatureUi
 
 # Debug options for visualizing samples
 const DEBUG_SHOW_SAMPLES: bool = true
@@ -243,6 +246,12 @@ func _ready() -> void:
 	if speed_label:
 		speed_label.text = "SPD: X" + String.num(speed_radio)
 	
+	# 初始化任务系统
+	if mission:
+		print("[GAME] Mission system initialized")
+		# 显示当前任务信息
+		call_deferred("_show_initial_mission_info")
+	
 	return
 
 var closest_ui = null
@@ -267,6 +276,10 @@ var _creatures_octree_acc: float = 0.0
 
 # How often (seconds) to validate and fix attachment states
 var _attachment_validation_timer: float = 0.0
+
+# Mission system integration variables
+var max_creature_size_ever: float = 0.0
+# 状态报告已移至Mission界面直接显示，无需定时器
 
 func _input(event: InputEvent) -> void:
 	# 处理暂停切换
@@ -356,6 +369,8 @@ func _input(event: InputEvent) -> void:
 		
 		if placed_count > 0:
 			print("[INPUT] Placed %d new creatures in ball range" % placed_count)
+			# 通知任务系统有新生物被放置
+			_notify_mission_creature_placed(placed_count)
 
 		
 	if(event.is_action_pressed("copy")):
@@ -398,6 +413,8 @@ func _input(event: InputEvent) -> void:
 		
 		if placed_count > 0:
 			print("[INPUT] Pasted %d creatures with copied genome (source index: %d)" % [placed_count, copied_genome_source_index])
+			# 通知任务系统有新生物被粘贴
+			_notify_mission_creature_placed(placed_count)
 		else:
 			print("[INPUT] No suitable attachment points found in ball range for pasting")
 		return
@@ -428,6 +445,8 @@ func _input(event: InputEvent) -> void:
 		
 		if removed_count > 0:
 			print("[INPUT] Removed %d creatures in ball range" % removed_count)
+			# 通知任务系统有生物被移除
+			_notify_mission_creature_removed(removed_count)
 		else:
 			print("[INPUT] No creatures found in ball range to remove")
 		return
@@ -505,6 +524,30 @@ func _input(event: InputEvent) -> void:
 		else:
 			print("[INPUT] No blocked attachment points found in ball range to unblock")
 		return
+	
+	# 任务系统相关输入处理
+	if mission:
+		# F1 - 显示当前任务信息（调试用）
+		if event.is_action_pressed("ui_accept"):  # Enter键
+			var mission_info = mission.get_current_mission_info()
+			if mission_info.size() > 0:
+				print("[MISSION DEBUG] Current: %s | Progress: %.1f%% (%s/%s)" % [
+					mission_info["description"], 
+					mission_info["progress"], 
+					mission_info["current"], 
+					mission_info["target"]
+				])
+			else:
+				print("[MISSION DEBUG] No active mission")
+		
+		# F2 - 强制完成当前任务（调试用）
+		if event.is_action_pressed("ui_cancel"):  # Escape键时重置任务系统
+			if Input.is_key_pressed(KEY_SHIFT):
+				mission.reset_mission_system()
+				print("[MISSION DEBUG] Mission system reset")
+			elif mission.can_skip_mission():
+				mission.force_complete_current_mission()
+				print("[MISSION DEBUG] Mission force completed")
 
 func _physics_process(delta: float) -> void:
 	# 获取实际的时间步长（考虑速度倍率和暂停状态）
@@ -518,6 +561,11 @@ func _physics_process(delta: float) -> void:
 
 		# Remove dead creatures after update so subsequent rendering/instancing matches live set
 		Creature.cleanup_dead()
+		
+		# 更新任务系统（任务系统有自己的更新逻辑，但我们可以在这里触发特殊事件）
+		if mission:
+			_update_mission_events()
+			# 状态报告现在直接在Mission界面显示，无需定期触发
 		
 		# Periodically validate and fix attachment states (every 5 seconds of real time)
 		_attachment_validation_timer += delta  # 使用真实时间，不受速度影响
@@ -548,3 +596,120 @@ func _physics_process(delta: float) -> void:
 
 	if DEBUG_SHOW_SAMPLES and not is_paused:
 		print("[PHYSICS] creatures_count=", Creature.creatures.size(), " multimesh_count=", mm.instance_count)
+
+# 任务系统事件处理
+func _update_mission_events() -> void:
+	"""处理任务系统相关的游戏事件"""
+	if not mission:
+		return
+		
+	var current_mission_info = mission.get_current_mission_info()
+	if current_mission_info.size() == 0:
+		return
+	
+	# 检查是否有重要的游戏事件需要通知任务系统
+	# 例如：新生物诞生、重大进化、生态系统变化等
+	
+	# 检查是否有重大进化事件（生物大小显著增长）
+	var current_max_size = 0.0
+	
+	for creature in Creature.creatures:
+		if creature and creature.is_alive:
+			current_max_size = max(current_max_size, creature.current_size_m)
+	
+	# 检查是否有重大进化突破
+	if current_max_size > max_creature_size_ever * 1.5:
+		max_creature_size_ever = current_max_size
+		_notify_mission_major_evolution()
+	
+	# 可以在这里添加特殊的任务完成庆祝效果
+	# 或者根据游戏状态动态调整任务难度等
+
+# 任务系统通知函数
+func _notify_mission_creature_placed(count: int) -> void:
+	"""通知任务系统有新生物被放置"""
+	if not mission:
+		return
+	
+	# 可以在这里添加特殊效果或者任务进度加速
+	print("[MISSION] Notified: %d creatures placed" % count)
+
+func _notify_mission_creature_removed(count: int) -> void:
+	"""通知任务系统有生物被移除"""
+	if not mission:
+		return
+	
+	print("[MISSION] Notified: %d creatures removed" % count)
+
+func _notify_mission_major_evolution() -> void:
+	"""通知任务系统发生了重大进化事件"""
+	if not mission:
+		return
+	
+	print("[MISSION] Notified: Major evolution detected")
+
+# 获取任务系统状态的辅助函数
+func get_mission_progress() -> Dictionary:
+	"""获取当前任务进度信息"""
+	if not mission:
+		return {}
+	return mission.get_current_mission_info()
+
+func is_mission_system_active() -> bool:
+	"""检查任务系统是否激活"""
+	return mission != null
+
+func complete_current_mission_debug() -> void:
+	"""调试用：完成当前任务"""
+	if mission:
+		mission.force_complete_current_mission()
+
+func reset_mission_system_debug() -> void:
+	"""调试用：重置任务系统"""
+	if mission:
+		mission.reset_mission_system()
+
+func _show_initial_mission_info() -> void:
+	"""显示初始任务信息"""
+	if not mission:
+		return
+		
+	var mission_info = mission.get_current_mission_info()
+	if mission_info.size() > 0:
+		print("=== MISSION SYSTEM STARTED ===")
+		print("Current Mission: %s" % mission_info["description"])
+		print("Target: %s" % mission_info["target"])
+		print("Progress: %.1f%%" % mission_info["progress"])
+		print("Mission %d of %d" % [mission_info["mission_index"], mission_info["total_missions"]])
+		print("==============================")
+
+# 添加一些游戏状态查询函数供任务系统使用
+func get_current_creature_count() -> int:
+	"""获取当前生物数量（供任务系统使用）"""
+	return Creature.creatures.size()
+
+func get_current_plant_count() -> int:
+	"""获取当前植物数量（供任务系统使用）"""
+	return Creature.get_current_plant_count()
+
+func get_current_max_creature_size() -> float:
+	"""获取当前最大生物体型（供任务系统使用）"""
+	var max_size = 0.0
+	for creature in Creature.creatures:
+		if creature and creature.is_alive:
+			max_size = max(max_size, creature.current_size_m)
+	return max_size
+
+func get_current_average_creature_size() -> float:
+	"""获取当前平均生物体型（供任务系统使用）"""
+	var total_size = 0.0
+	var count = 0
+	for creature in Creature.creatures:
+		if creature and creature.is_alive:
+			total_size += creature.current_size_m
+			count += 1
+	return total_size / max(1, count)
+
+# 注释：状态报告功能已移至Mission界面直接显示
+# func _show_mission_status_report() -> void:
+# 	"""定期显示任务状态报告 - 已废弃，状态现在直接在Mission界面显示"""

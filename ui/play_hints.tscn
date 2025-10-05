@@ -1,8 +1,11 @@
-[gd_scene load_steps=5 format=3 uid="uid://53gkgt0tkppt"]
+[gd_scene load_steps=8 format=3 uid="uid://53gkgt0tkppt"]
 
 [ext_resource type="FontFile" uid="uid://bvkp8wfi2o61l" path="res://assets/BoldPixels/BoldPixels.ttf" id="1_q6t07"]
 [ext_resource type="Script" uid="uid://ctewvllqffohp" path="res://ui/play_hints.gd" id="1_swlqj"]
 [ext_resource type="Texture2D" uid="uid://538qy8kqpl73" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Vector/mouse_left.svg" id="2_4iehd"]
+[ext_resource type="Texture2D" uid="uid://bfvued33ulvbn" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Default/mouse_scroll.png" id="4_8avie"]
+[ext_resource type="Texture2D" uid="uid://c0wmkhvdlw1g2" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Default/keyboard_b.png" id="5_f08mn"]
+[ext_resource type="Texture2D" uid="uid://bqd3xsbv8ma4i" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Default/keyboard_n.png" id="6_m5x2j"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_swlqj"]
 font = ExtResource("1_q6t07")
@@ -32,17 +35,60 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_top = 512
 
-[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="MarginContainer/HBoxContainer"]
+[node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 64
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2/HBoxContainer"]
 layout_mode = 2
 text = "PUT"
 label_settings = SubResource("LabelSettings_swlqj")
 
-[node name="TextureRect3" type="TextureRect" parent="MarginContainer/HBoxContainer"]
+[node name="TextureRect3" type="TextureRect" parent="MarginContainer/VBoxContainer/HBoxContainer2/HBoxContainer"]
 layout_mode = 2
 texture = ExtResource("2_4iehd")
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2/HBoxContainer2"]
+layout_mode = 2
+text = "REMOVE"
+label_settings = SubResource("LabelSettings_swlqj")
+
+[node name="TextureRect3" type="TextureRect" parent="MarginContainer/VBoxContainer/HBoxContainer2/HBoxContainer2"]
+layout_mode = 2
+texture = ExtResource("4_8avie")
+
+[node name="HBoxContainer4" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2/HBoxContainer4"]
+layout_mode = 2
+text = "LOCK"
+label_settings = SubResource("LabelSettings_swlqj")
+
+[node name="TextureRect3" type="TextureRect" parent="MarginContainer/VBoxContainer/HBoxContainer2/HBoxContainer4"]
+layout_mode = 2
+texture = ExtResource("5_f08mn")
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="MarginContainer/VBoxContainer/HBoxContainer2"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer/HBoxContainer2/HBoxContainer3"]
+layout_mode = 2
+text = "UNLOCK"
+label_settings = SubResource("LabelSettings_swlqj")
+
+[node name="TextureRect3" type="TextureRect" parent="MarginContainer/VBoxContainer/HBoxContainer2/HBoxContainer3"]
+layout_mode = 2
+texture = ExtResource("6_m5x2j")
 
 [node name="MarginContainer2" type="MarginContainer" parent="."]
 layout_mode = 1

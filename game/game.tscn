@@ -1,4 +1,4 @@
-[gd_scene load_steps=31 format=3 uid="uid://0rfytu81flit"]
+[gd_scene load_steps=37 format=3 uid="uid://0rfytu81flit"]
 
 [ext_resource type="Script" uid="uid://cy6lpo27737dh" path="res://game/game.gd" id="1_dxrkv"]
 [ext_resource type="PackedScene" uid="uid://6vhw6mex20aw" path="res://camera/camera.tscn" id="1_vasa2"]
@@ -8,14 +8,23 @@
 [ext_resource type="PackedScene" uid="uid://cjp077w3p6qih" path="res://ui/speed_label.tscn" id="2_hb504"]
 [ext_resource type="PackedScene" uid="uid://cxkh88b0oaihq" path="res://sound_effects/sound_effects.tscn" id="2_j8tme"]
 [ext_resource type="PackedScene" uid="uid://c1iwm1a8kdhqm" path="res://ui/closest_creature_ui.tscn" id="2_y36n6"]
+[ext_resource type="PackedScene" uid="uid://cjmrptdmunwbb" path="res://mission/mission.tscn" id="3_4cobl"]
 [ext_resource type="ArrayMesh" uid="uid://cm1kaufixpk0g" path="res://assets/medium_meshes/medium_02.res" id="3_dxrkv"]
 [ext_resource type="PackedScene" uid="uid://c20d3gjxkr7um" path="res://ui/init_hints.tscn" id="4_b686c"]
 [ext_resource type="ArrayMesh" uid="uid://ud6uo2kgjhxt" path="res://assets/medium_meshes/medium_03.res" id="4_dakft"]
 [ext_resource type="Script" uid="uid://byotnhlhwvfkq" path="res://ui/init_hints.gd" id="5_hb504"]
 [ext_resource type="Shader" uid="uid://deyqdio76qmdu" path="res://assets/viruse_meshes/virus.gdshader" id="6_u5opy"]
+[ext_resource type="FontFile" uid="uid://bvkp8wfi2o61l" path="res://assets/BoldPixels/BoldPixels.ttf" id="6_u8s88"]
+[ext_resource type="Texture2D" uid="uid://dcxudn0eerpw4" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Vector/keyboard_c.svg" id="7_dxwpq"]
 [ext_resource type="ArrayMesh" uid="uid://bl8krj02o3d40" path="res://assets/viruse_meshes/ico_sphere_x1.res" id="7_u5opy"]
 [ext_resource type="PackedScene" uid="uid://53gkgt0tkppt" path="res://ui/play_hints.tscn" id="8_ee6o4"]
+[ext_resource type="Texture2D" uid="uid://ewjhawiy1eqn" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Default/keyboard_v.png" id="8_mhvfb"]
 [ext_resource type="AudioStream" uid="uid://d2fqkx7g1qe7e" path="res://assets/music/Untitled.mp3" id="9_l8g03"]
+[ext_resource type="Script" uid="uid://bxar8vpq7mb5s" path="res://game/random_move.gd" id="15_dxwpq"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_5e03w"]
+font = ExtResource("6_u8s88")
+font_size = 48
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4fuuu"]
 sky_top_color = Color(0.1507276, 0.36575258, 1, 1)
@@ -59,6 +68,9 @@ data = PackedVector3Array(-5.174, 1.3378999, 2.3532999, -4.9849, 3.2675, -1.6455
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_y36n6"]
 render_priority = 0
 shader = ExtResource("6_u5opy")
+shader_parameter/sway_speed = 1.0
+shader_parameter/sway_strength = 0.05
+shader_parameter/sway_phase_len = 8.0
 
 [sub_resource type="MultiMesh" id="MultiMesh_dxrkv"]
 transform_format = 1
@@ -98,15 +110,52 @@ theme_override_constants/margin_top = 32
 theme_override_constants/margin_right = 32
 theme_override_constants/margin_bottom = 32
 
-[node name="ClosestCreatureUi" parent="MarginContainer2" node_paths=PackedStringArray("target_indicator") instance=ExtResource("2_y36n6")]
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer2"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ClosestCreatureUi" parent="MarginContainer2/VBoxContainer" node_paths=PackedStringArray("target_indicator") instance=ExtResource("2_y36n6")]
 layout_mode = 2
 text = "INDEX:QWQ"
-target_indicator = NodePath("../../TextureRect")
+target_indicator = NodePath("../../../TextureRect")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer2/VBoxContainer"]
+visible = false
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer2/VBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="TextureRect3" type="TextureRect" parent="MarginContainer2/VBoxContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+texture = ExtResource("7_dxwpq")
+
+[node name="Label" type="Label" parent="MarginContainer2/VBoxContainer/VBoxContainer/HBoxContainer"]
+layout_mode = 2
+text = "COPY"
+label_settings = SubResource("LabelSettings_5e03w")
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer2/VBoxContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="TextureRect3" type="TextureRect" parent="MarginContainer2/VBoxContainer/VBoxContainer/HBoxContainer2"]
+layout_mode = 2
+texture = ExtResource("8_mhvfb")
+
+[node name="Label" type="Label" parent="MarginContainer2/VBoxContainer/VBoxContainer/HBoxContainer2"]
+layout_mode = 2
+text = "PASTE"
+label_settings = SubResource("LabelSettings_5e03w")
 
 [node name="InitHints" parent="." instance=ExtResource("4_b686c")]
 script = ExtResource("5_hb504")
 
 [node name="PlayHints" parent="." instance=ExtResource("8_ee6o4")]
+
+[node name="Mission" parent="." instance=ExtResource("3_4cobl")]
+process_thread_group = 1
+process_thread_group_order = 0
+process_thread_messages = 0
 
 [node name="Intro" parent="." instance=ExtResource("2_3vho3")]
 
@@ -127,6 +176,7 @@ transform = Transform3D(-0.8329035, -0.075065136, 0.5483037, 0, 0.9907583, 0.135
 size = 35.464
 
 [node name="Node3D" type="Node3D" parent="."]
+script = ExtResource("15_dxwpq")
 
 [node name="Medium01" type="MeshInstance3D" parent="Node3D"]
 transform = Transform3D(0.30979335, 0.15861116, 0, -0.15861116, 0.30979335, 0, 0, 0, 0.34803653, -10.930731, -10.1119175, 5.35855)
@@ -213,8 +263,10 @@ autoplay = true
 
 [connection signal="hints_hidden" from="InitHints" to="SpeedLabel" method="fade_in"]
 [connection signal="ball_size_updated" from="Camera" to="PlayHints" method="update_radius"]
+[connection signal="ray_collision_lost" from="Camera" to="MarginContainer2/VBoxContainer/VBoxContainer" method="hide"]
 [connection signal="ray_collision_lost" from="Camera" to="PlayHints" method="hide_immediately"]
-[connection signal="ray_collision_position_updated" from="Camera" to="MarginContainer2/ClosestCreatureUi" method="set_reference_position"]
+[connection signal="ray_collision_position_updated" from="Camera" to="MarginContainer2/VBoxContainer/ClosestCreatureUi" method="set_reference_position"]
+[connection signal="ray_collision_simple" from="Camera" to="MarginContainer2/VBoxContainer/VBoxContainer" method="show"]
 [connection signal="ray_collision_simple" from="Camera" to="PlayHints" method="show_immediately"]
 
 [editable path="SpeedLabel"]
