@@ -1,8 +1,8 @@
 extends Control
 class_name MissionSystem
 
+# UI元素引用
 var mission_label : RichTextLabel
-var skip_button : Button
 
 # 游戏节点引用（用于获取游戏状态）
 var game_node: Node3D = null
@@ -82,25 +82,8 @@ func _ready() -> void:
 	
 	# 手动获取节点引用
 	mission_label = get_node("VBoxContainer2/VBoxContainer/MarginContainer2/RichTextLabel")
-	skip_button = get_node("VBoxContainer2/MarginContainer3/Button")
 	
 	print("[MISSION] Mission label found: ", mission_label != null)
-	print("[MISSION] Skip button found: ", skip_button != null)
-	
-	if skip_button:
-		# 确保先断开旧连接（如果有的话）
-		if skip_button.pressed.is_connected(_on_skip_button_pressed):
-			skip_button.pressed.disconnect(_on_skip_button_pressed)
-		
-		skip_button.pressed.connect(_on_skip_button_pressed)
-		skip_button.disabled = false
-		print("[MISSION] Skip button connected and enabled")
-		
-		# 测试按钮是否可点击
-		print("[MISSION] Skip button disabled state: ", skip_button.disabled)
-		print("[MISSION] Skip button text: ", skip_button.text)
-	else:
-		print("[MISSION] ERROR: Skip button not found!")
 	
 	# 获取游戏节点引用
 	game_node = get_parent()
@@ -109,18 +92,13 @@ func _ready() -> void:
 	_start_next_mission()
 
 func _process(delta: float) -> void:
+	# 检测ESC键跳过任务
+	if Input.is_action_just_pressed("skip_mission"):  # ESC键
+		_handle_skip_input()
+	
 	# 更新跳过按钮冷却
-	if skip_button:
-		if skip_cooldown_timer > 0.0:
-			skip_cooldown_timer -= delta
-			skip_button.text = "SKIP (%ds)" % int(skip_cooldown_timer + 1)
-			skip_button.disabled = true
-		else:
-			skip_button.text = "SKIP"
-			skip_button.disabled = false
-			# 添加调试信息（每5秒打印一次状态）
-			if int(Time.get_time_dict_from_system()["second"]) % 5 == 0:
-				print("[MISSION DEBUG] Skip button enabled, cooldown: %.1f" % skip_cooldown_timer)
+	if skip_cooldown_timer > 0.0:
+		skip_cooldown_timer -= delta
 	
 	# 更新当前任务进度
 	if current_mission and not current_mission.is_completed and not is_skipping_mission:
@@ -222,9 +200,6 @@ func _start_next_mission() -> void:
 	# 清除skip冷却和跳过状态（新任务开始时允许立即跳过）
 	skip_cooldown_timer = 0.0
 	is_skipping_mission = false
-	if skip_button:
-		skip_button.disabled = false
-		skip_button.text = "SKIP"
 	
 	print("[MISSION] Started mission %d: %s (Target: %.1f)" % [mission_index + 1, current_mission.description, current_mission.target_value])
 	_update_mission_display()
@@ -281,7 +256,7 @@ func _update_mission_display() -> void:
 	var progress_bar = _create_progress_bar(progress_percent)
 	
 	var display_text = ""
-	display_text += "MISSION %d | COMPLETED: %d\n" % [mission_index + 1, completed_missions_count]
+	display_text += "MISSION %d | FINISHED: %d\n" % [mission_index + 1, completed_missions_count]
 	display_text += "%s\n\n" % current_mission.description
 	display_text += "Progress: %.1f / %.1f\n" % [current_mission.current_value, current_mission.target_value]
 	display_text += "%s\n" % progress_bar
@@ -354,9 +329,9 @@ func _complete_current_mission() -> void:
 	
 	# 显示完成信息
 	var completion_text = ""
-	completion_text += "MISSION COMPLETE!\n"
-	completion_text += "%s\n" % current_mission.description
-	completion_text += "%s" % current_mission.reward_text
+	completion_text += "✅ MISSION COMPLETE! ✅\n\n"
+	completion_text += "Accomplished: %s\n\n" % current_mission.description
+	completion_text += "🎉 %s 🎉" % current_mission.reward_text
 	
 	mission_label.text = completion_text
 	
@@ -375,26 +350,31 @@ func _skip_current_mission() -> void:
 	
 	# 显示跳过信息
 	var skip_text = ""
-	skip_text += "MISSION SKIPPED!\n"
-	skip_text += "%s\n" % current_mission.description
-	skip_text += "Moving to next mission..."
+	skip_text += "MISSION SKIPPED!\n\n"
+	skip_text += "Skipped: %s\n" % current_mission.description
+	skip_text += "Reason: User pressed ESC\n\n"
+	skip_text += "Loading next mission..."
 	
 	mission_label.text = skip_text
 	
-	# 1秒后开始下一个任务（比完成更快）
-	await get_tree().create_timer(1.0).timeout
+	# 1.5秒后开始下一个任务，给用户足够时间看到跳过信息
+	await get_tree().create_timer(1.5).timeout
 	mission_index += 1
 	is_skipping_mission = false
 	_start_next_mission()
 
-func _on_skip_button_pressed() -> void:
-	"""处理跳过按钮点击"""
-	print("[MISSION] Skip button pressed!")
+func _handle_skip_input() -> void:
+	"""处理ESC键跳过任务"""
+	print("[MISSION] ESC key pressed for skip!")
 	print("[MISSION] Current cooldown timer: %.1f" % skip_cooldown_timer)
 	print("[MISSION] Current mission exists: ", current_mission != null)
+	if current_mission:
+		print("[MISSION] Current mission: %s" % current_mission.description)
+		print("[MISSION] Mission completed: %s" % current_mission.is_completed)
+	print("[MISSION] Is skipping mission: %s" % is_skipping_mission)
 	
 	if skip_cooldown_timer > 0.0:
-		print("[MISSION] Skip button is on cooldown: %.1fs remaining" % skip_cooldown_timer)
+		print("[MISSION] Skip is on cooldown: %.1fs remaining" % skip_cooldown_timer)
 		return  # 还在冷却中
 	
 	if not current_mission or current_mission.is_completed:
@@ -404,6 +384,8 @@ func _on_skip_button_pressed() -> void:
 	if is_skipping_mission:
 		print("[MISSION] Already skipping a mission")
 		return
+	
+	print("[MISSION] Proceeding with mission skip...")
 	
 	# 播放音效
 	if has_node("AudioStreamPlayer"):
