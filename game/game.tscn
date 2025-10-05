@@ -100,6 +100,21 @@ layout_mode = 2
 text = "X2"
 label_settings = SubResource("LabelSettings_vsp63")
 
+[node name="MarginContainer2" type="MarginContainer" parent="."]
+process_thread_group = 1
+process_thread_group_order = 0
+process_thread_messages = 0
+offset_right = 40.0
+offset_bottom = 40.0
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 32
+
+[node name="ClosestCreatureUi" parent="MarginContainer2" instance=ExtResource("2_y36n6")]
+layout_mode = 2
+text = "INDEX:QWQ"
+
 [node name="Intro" parent="." instance=ExtResource("2_3vho3")]
 
 [node name="PlayHints" type="Control" parent="."]
@@ -118,11 +133,6 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="SoundEffects" parent="." instance=ExtResource("2_j8tme")]
-
-[node name="ClosestCreatureUi" parent="." instance=ExtResource("2_y36n6")]
-process_thread_group = 1
-process_thread_group_order = 0
-process_thread_messages = 0
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)

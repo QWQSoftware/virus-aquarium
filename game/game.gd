@@ -1,6 +1,9 @@
 extends Node3D
 
 @onready
+var cloest_ui : Label = $MarginContainer2/ClosestCreatureUi
+
+@onready
 var sound_effects : SoundEffects = $SoundEffects
 
 @onready
@@ -225,10 +228,7 @@ func _ready() -> void:
 	# newCreature.attach_to_surface_point(0)
 
 	# Instance the UI that shows closest creature and count
-	var ui_scene = preload("res://ui/closest_creature_ui.tscn")
-	var ui_inst = ui_scene.instantiate()
-	add_child(ui_inst)
-	self.closest_ui = ui_inst
+	self.closest_ui = cloest_ui
 	
 	
 	Creature.world_light_direction = -light.global_basis.z

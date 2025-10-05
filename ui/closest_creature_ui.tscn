@@ -1,6 +1,14 @@
-[gd_scene load_steps=2 format=3 uid="uid://c1iwm1a8kdhqm"]
+[gd_scene load_steps=4 format=3 uid="uid://c1iwm1a8kdhqm"]
 
 [ext_resource type="Script" uid="uid://cdjce43sv38as" path="res://ui/closest_creature_ui.gd" id="1_hef0w"]
+[ext_resource type="FontFile" uid="uid://bvkp8wfi2o61l" path="res://assets/BoldPixels/BoldPixels.ttf" id="1_v8dg2"]
 
-[node name="ClosestCreatureUi" type="CanvasLayer"]
+[sub_resource type="LabelSettings" id="LabelSettings_lqtlu"]
+font = ExtResource("1_v8dg2")
+font_size = 24
+
+[node name="ClosestCreatureUi" type="Label"]
+offset_right = 1.0
+offset_bottom = 23.0
+label_settings = SubResource("LabelSettings_lqtlu")
 script = ExtResource("1_hef0w")

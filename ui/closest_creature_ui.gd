@@ -1,28 +1,19 @@
-extends CanvasLayer
+extends Label
 
 # 显示与当前摄像机距离最近生物的实时信息（年龄、能量、血量等）
-# 使用方法：在场景中添加一个 CanvasLayer 节点并把此脚本附加到它，或直接把脚本作为子节点挂载。
+# 使用方法：在场景中添加一个 Label 节点并把此脚本附加到它。
 # 要求：项目中存在全局可访问的 `Creature` 类（带有静态数组 `Creature.creatures`）
 
 @export var update_rate: float = 0.2 # 信息刷新间隔（秒）
 @export var max_distance: float = 100.0 # 搜索最近生物的最大距离
 
 var _acc: float = 0.0
-var _label: Label
 
 func _ready() -> void:
-	# 创建并布局一个简单的 Label（如果用户在编辑器中已经添加了子 Label，可相应修改）
-	_label = Label.new()
-	_label.name = "ClosestCreatureLabel"
-	_label.text = ""
-	# 默认放在左上角（避免对 Layout 的特定属性赋值以兼容不同 Godot 版本）
-	# 如果需要特定定位，请在场景编辑器中把这个 Label 放入合适的 Container 并设置偏移。
-	# 可选样式：使文字易读
-	_label.add_theme_color_override("font_color", Color(1,1,1))
-	add_child(_label)
-	# 保证在左上角可见（Godot 4: 使用 position/min_size 而不是 rect_*）
-	_label.position = Vector2(8, 8)
-	_label.visible = true
+	# 现在这个脚本直接继承自Label，所以不需要创建子Label
+	# 所有的大小、位置、字体等属性都可以在场景编辑器中直接设置
+	self.text = ""
+	self.visible = true
 
 func _process(delta: float) -> void:
 	_acc += delta
@@ -35,7 +26,7 @@ func _update_closest_creature() -> void:
 	var cam: Camera3D = get_viewport().get_camera_3d()
 	if not cam:
 		# 没有摄像机时隐藏信息
-		_label.text = ""
+		self.text = ""
 		return
 	var cam_pos: Vector3 = cam.global_transform.origin
 
@@ -60,7 +51,7 @@ func _update_closest_creature() -> void:
 
 	# 如果没有找到合适的生物，清空显示
 	if not best_creature:
-		_label.call_deferred("set_text", "")
+		call_deferred("set_text", "")
 		return
 
 	# 从生物中提取信息并格式化显示
@@ -155,5 +146,5 @@ func _update_closest_creature() -> void:
 	info_lines.append("Cooldown timer: %.1f s (mating cooldown: %.1f s, selfrep cooldown: %.1f s)" % [cooldown_timer, mating_cooldown, selfrep_cooldown])
 	info_lines.append("Is reproducing: %s" % ("Yes" if best_creature.is_reproducing else "No"))
 	
-	var text = "\n".join(info_lines)
-	_label.call_deferred("set_text", text)
+	var info_text = "\n".join(info_lines)
+	call_deferred("set_text", info_text)
