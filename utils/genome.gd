@@ -364,6 +364,20 @@ static func random_plant_genome(rng_seed: int = -1) -> Array:
 	g[7] = rng.randf_range(lifespan_min_t, lifespan_max_t)
 	return g
 
+static func get_creature_genome(creature) -> Array:
+	# Safely return a duplicate of creature.genome or an empty Array if invalid
+	if creature == null:
+		return []
+	if typeof(creature) == TYPE_OBJECT and creature.has_method("get_genome"):
+		var gg = creature.get_genome()
+		if typeof(gg) == TYPE_ARRAY:
+			return gg.duplicate()
+		return []
+	# Fallback: try direct property access if present
+	if typeof(creature.genome) == TYPE_ARRAY:
+		return creature.genome.duplicate()
+	return []
+
 static func enforce_plant_genome(genome: Array, rng_seed: int = -1) -> Array:
 	# 确保给定的 genome 满足植物的约束：
 	# - 精力槽（47）为 0（植物无精力）

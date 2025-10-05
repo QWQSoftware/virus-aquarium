@@ -20,13 +20,7 @@ var camera : FreeLookCamera = $Camera
 
 @onready
 var mediums : Array = [
-	$Medium01,
-	$Medium02,
-	$Medium03,
-	$Medium04,
-	$Medium05, 
-	$Medium06, 
-	$Medium07
+$Node3D/Medium01, $Node3D/Medium02, $Node3D/Medium03, $Node3D/Medium04, $Node3D/Medium05, $Node3D/Medium06, $Node3D/Medium07
 ]
 
 @onready
@@ -34,6 +28,9 @@ var speed_label : Label = $SpeedLabel/HBoxContainer/SpeedLabel
 
 @onready
 var speed_label_control : Control = $SpeedLabel
+
+@onready
+var cloest_creature_ui : CloestCreatureUI = $MarginContainer2/ClosestCreatureUi
 
 # Debug options for visualizing samples
 const DEBUG_SHOW_SAMPLES: bool = true
@@ -244,6 +241,10 @@ func _ready() -> void:
 
 var closest_ui = null
 
+# Copied genome for paste functionality
+var copied_genome: Array = []
+var copied_genome_source_index: int = -1
+
 # Game speed and pause control
 var speed_radio : float = 1.0
 var is_paused : bool = false
@@ -351,19 +352,49 @@ func _input(event: InputEvent) -> void:
 			print("[INPUT] Placed %d new creatures in ball range" % placed_count)
 
 		
+	if(event.is_action_pressed("copy")):
+		var target_creature = cloest_creature_ui._current_target_creature
+		if target_creature != null:
+			copied_genome = GenomeUtils.get_creature_genome(target_creature)
+			copied_genome_source_index = target_creature.index
+			print("[INPUT] Copied genome from creature index: %d" % target_creature.index)
+		else:
+			print("[INPUT] No target creature selected for copying")
+		return
 	
-	# 按 'c' 键计数 camera.BallRangeMesh 范围内的生物并打印
-	if event is InputEventKey:
-		if event.pressed and not event.echo and event.keycode == Key.KEY_C:
-			var target_range = camera.BallRadius
-			var pos = camera.BallRangeMesh.global_transform.origin
-			var cnt = 0
-			for cc in Creature.creatures:
-				if cc and cc.position.distance_to(pos) <= target_range:
-					cnt += 1
-
-			print("[INPUT] Creatures in ball range:", cnt)
-
+	# 粘贴功能：使用复制的基因组在球体范围内放置生物
+	if(event.is_action_pressed("paste")):
+		if copied_genome.size() == 0:
+			print("[INPUT] No genome copied. Use copy action first.")
+			return
+			
+		var target_range = camera.BallRadius
+		var pos = camera.BallRangeMesh.global_transform.origin
+		var placed_count = 0
+		
+		for i in range(Creature.world_surface_points.size()):
+			var p = Creature.world_surface_points[i]
+			
+			# 检查附着点是否已被占用
+			if i >= Creature.world_surface_point_is_attached.size() or Creature.world_surface_point_is_attached[i]:
+				continue
+				
+			# 检查是否在目标范围内
+			if p.distance_to(pos) <= target_range:
+				# 预先标记附着点为已占用，避免重复放置
+				Creature.world_surface_point_is_attached[i] = true
+				
+				# 使用复制的基因组创建新生物
+				var mutated_genome = GenomeUtils.mutate_genome(copied_genome)
+				var c = Creature.new(mutated_genome, Transform3D.IDENTITY)
+				c.attach_to_surface_point(i)
+				placed_count += 1
+		
+		if placed_count > 0:
+			print("[INPUT] Pasted %d creatures with copied genome (source index: %d)" % [placed_count, copied_genome_source_index])
+		else:
+			print("[INPUT] No suitable attachment points found in ball range for pasting")
+		return
 
 func _physics_process(delta: float) -> void:
 	# 获取实际的时间步长（考虑速度倍率和暂停状态）

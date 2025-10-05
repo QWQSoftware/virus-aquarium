@@ -490,6 +490,12 @@ func _init(genome_in: Array, transform: Transform3D) -> void:
 
 	sound_effects.play_random_sound()
 
+# 返回当前实例的基因组副本，避免外部直接修改内部数组
+func get_genome() -> Array:
+	if typeof(self.genome) == TYPE_ARRAY:
+		return self.genome.duplicate()
+	return []
+
 # 销毁时从静态数组中移除自己
 func dispose() -> void:
 	if self.index >= 0 and self.index < creatures_world_positions.size():

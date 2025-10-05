@@ -1,4 +1,4 @@
-extends Label
+class_name CloestCreatureUI extends Label
 
 # 显示与给定位置距离最近生物的实时信息（年龄、能量、血量等），并可选地在屏幕上显示目标指示器
 # 使用方法：在场景中添加一个 Label 节点并把此脚本附加到它，然后通过 set_reference_position() 函数设置参考位置。
