@@ -1,0 +1,51 @@
+[gd_scene load_steps=7 format=3 uid="uid://cjp077w3p6qih"]
+
+[ext_resource type="Script" uid="uid://bu154vne1rnll" path="res://ui/speed_label.gd" id="1_l3ty5"]
+[ext_resource type="Texture2D" uid="uid://dbem12cf4ddwk" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Vector/keyboard_minus.svg" id="2_8rtro"]
+[ext_resource type="Texture2D" uid="uid://2mg2tjpd05pa" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Default/keyboard_space_icon.png" id="3_evtuw"]
+[ext_resource type="Texture2D" uid="uid://cf78p810eecal" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Default/keyboard_plus.png" id="4_j8he1"]
+[ext_resource type="FontFile" uid="uid://bvkp8wfi2o61l" path="res://assets/BoldPixels/BoldPixels.ttf" id="5_u08n8"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_vsp63"]
+font = ExtResource("5_u08n8")
+font_size = 64
+
+[node name="SpeedLabel" type="MarginContainer"]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -136.0
+offset_top = -128.0
+grow_horizontal = 0
+grow_vertical = 0
+size_flags_horizontal = 8
+size_flags_vertical = 8
+theme_override_constants/margin_right = 64
+theme_override_constants/margin_bottom = 64
+script = ExtResource("1_l3ty5")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 32
+
+[node name="HBoxContainer" type="HBoxContainer" parent="HBoxContainer"]
+layout_mode = 2
+
+[node name="TextureRect2" type="TextureRect" parent="HBoxContainer/HBoxContainer"]
+layout_mode = 2
+texture = ExtResource("2_8rtro")
+
+[node name="TextureRect3" type="TextureRect" parent="HBoxContainer/HBoxContainer"]
+layout_mode = 2
+texture = ExtResource("3_evtuw")
+
+[node name="TextureRect" type="TextureRect" parent="HBoxContainer/HBoxContainer"]
+layout_mode = 2
+texture = ExtResource("4_j8he1")
+
+[node name="SpeedLabel" type="Label" parent="HBoxContainer"]
+layout_mode = 2
+text = "X2"
+label_settings = SubResource("LabelSettings_vsp63")

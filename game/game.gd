@@ -30,7 +30,10 @@ var mediums : Array = [
 ]
 
 @onready
-var speed_label : Label = $MarginContainer/SpeedLabel
+var speed_label : Label = $SpeedLabel/HBoxContainer/SpeedLabel
+
+@onready
+var speed_label_control : Control = $SpeedLabel
 
 # Debug options for visualizing samples
 const DEBUG_SHOW_SAMPLES: bool = true
@@ -245,7 +248,7 @@ var closest_ui = null
 var speed_radio : float = 1.0
 var is_paused : bool = false
 var origin_speed_radio : float = 0.0
-var radio_text : String = "X1"
+var radio_text : String = "SPD: X1"
 
 # debug visualization scale for surface points (meters)
 # default increased so debug points are visible without Inspector tweaks
@@ -261,6 +264,10 @@ var _attachment_validation_timer: float = 0.0
 func _input(event: InputEvent) -> void:
 	# 处理暂停切换
 	if(event.is_action_pressed("pause")):
+		# 触发暂停操作的回调
+		if speed_label_control:
+			speed_label_control.on_pause()
+		
 		is_paused = !is_paused
 		if(is_paused):
 			origin_speed_radio = speed_radio
@@ -272,31 +279,50 @@ func _input(event: InputEvent) -> void:
 			speed_radio = origin_speed_radio
 			radio_text = String.num(speed_radio)
 			if speed_label:
-				speed_label.text = "X" + radio_text
+				speed_label.text = "SPD: X" + radio_text
 			print("[INPUT] Game unpaused (speed: X%s)" % radio_text)
 		return  # 暂停切换后直接返回，避免其他逻辑干扰
 
-	# 只有在非暂停状态下才允许调整速度
-	if not is_paused:
-		var speed_changed = false
+	# 处理速度调整（在暂停状态下按加速/减速也会取消暂停）
+	var speed_changed = false
+	
+	if(event.is_action_pressed("speed_up")):
+		# 触发加速操作的回调
+		if speed_label_control:
+			speed_label_control.on_speed_up()
 		
-		if(event.is_action_pressed("speed_up")):
-			speed_radio *= 2
-			if speed_radio > 64:
-				speed_radio = 64
-			speed_changed = true
-			
-		if(event.is_action_pressed("speed_down")):
-			speed_radio /= 2
-			if speed_radio < 0.25:
-				speed_radio = 0.25
-			speed_changed = true
+		# 如果当前是暂停状态，先取消暂停
+		if is_paused:
+			is_paused = false
+			speed_radio = origin_speed_radio
+			print("[INPUT] Game unpaused by speed_up (restored speed: X%s)" % String.num(speed_radio))
 		
-		# 只有在速度发生变化时才更新标签
-		if speed_changed:
-			radio_text = String.num(speed_radio)
-			if speed_label:
-				speed_label.text = "X" + radio_text
+		speed_radio *= 2
+		if speed_radio > 64:
+			speed_radio = 64
+		speed_changed = true
+		
+	if(event.is_action_pressed("speed_down")):
+		# 触发减速操作的回调
+		if speed_label_control:
+			speed_label_control.on_speed_down()
+		
+		# 如果当前是暂停状态，先取消暂停
+		if is_paused:
+			is_paused = false
+			speed_radio = origin_speed_radio
+			print("[INPUT] Game unpaused by speed_down (restored speed: X%s)" % String.num(speed_radio))
+		
+		speed_radio /= 2
+		if speed_radio < 0.25:
+			speed_radio = 0.25
+		speed_changed = true
+	
+	# 只有在速度发生变化时才更新标签
+	if speed_changed:
+		radio_text = String.num(speed_radio)
+		if speed_label:
+			speed_label.text = "SPD: X" + radio_text
 
 	# 在范围内的所有空闲附着点放置新生物
 	if(event.is_action_pressed("put_new_creatures")):

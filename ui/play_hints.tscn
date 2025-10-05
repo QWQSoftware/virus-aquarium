@@ -1,0 +1,68 @@
+[gd_scene load_steps=5 format=3 uid="uid://53gkgt0tkppt"]
+
+[ext_resource type="FontFile" uid="uid://bvkp8wfi2o61l" path="res://assets/BoldPixels/BoldPixels.ttf" id="1_q6t07"]
+[ext_resource type="Script" uid="uid://ctewvllqffohp" path="res://ui/play_hints.gd" id="1_swlqj"]
+[ext_resource type="Texture2D" uid="uid://538qy8kqpl73" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Vector/mouse_left.svg" id="2_4iehd"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_swlqj"]
+font = ExtResource("1_q6t07")
+font_size = 48
+
+[node name="PlayHints" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_swlqj")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_top = 512
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer/HBoxContainer"]
+layout_mode = 2
+text = "PUT"
+label_settings = SubResource("LabelSettings_swlqj")
+
+[node name="TextureRect3" type="TextureRect" parent="MarginContainer/HBoxContainer"]
+layout_mode = 2
+texture = ExtResource("2_4iehd")
+
+[node name="MarginContainer2" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 512
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer2"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="MarginContainer2/HBoxContainer"]
+layout_mode = 2
+text = "1X"
+label_settings = SubResource("LabelSettings_swlqj")

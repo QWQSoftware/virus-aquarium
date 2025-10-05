@@ -1,21 +1,20 @@
-[gd_scene load_steps=28 format=3 uid="uid://0rfytu81flit"]
+[gd_scene load_steps=30 format=3 uid="uid://0rfytu81flit"]
 
 [ext_resource type="Script" uid="uid://cy6lpo27737dh" path="res://game/game.gd" id="1_dxrkv"]
 [ext_resource type="PackedScene" uid="uid://6vhw6mex20aw" path="res://camera/camera.tscn" id="1_vasa2"]
 [ext_resource type="PackedScene" uid="uid://ciig6xycycyv7" path="res://ui/intro.tscn" id="2_3vho3"]
 [ext_resource type="ArrayMesh" uid="uid://bkrtltkpqk4i6" path="res://assets/medium_meshes/medium_01.res" id="2_4fuuu"]
+[ext_resource type="PackedScene" uid="uid://cjp077w3p6qih" path="res://ui/speed_label.tscn" id="2_hb504"]
 [ext_resource type="PackedScene" uid="uid://cxkh88b0oaihq" path="res://sound_effects/sound_effects.tscn" id="2_j8tme"]
 [ext_resource type="PackedScene" uid="uid://c1iwm1a8kdhqm" path="res://ui/closest_creature_ui.tscn" id="2_y36n6"]
 [ext_resource type="ArrayMesh" uid="uid://cm1kaufixpk0g" path="res://assets/medium_meshes/medium_02.res" id="3_dxrkv"]
-[ext_resource type="FontFile" uid="uid://bvkp8wfi2o61l" path="res://assets/BoldPixels/BoldPixels.ttf" id="3_qf6n1"]
+[ext_resource type="PackedScene" uid="uid://c20d3gjxkr7um" path="res://ui/init_hints.tscn" id="4_b686c"]
 [ext_resource type="ArrayMesh" uid="uid://ud6uo2kgjhxt" path="res://assets/medium_meshes/medium_03.res" id="4_dakft"]
+[ext_resource type="Script" uid="uid://byotnhlhwvfkq" path="res://ui/init_hints.gd" id="5_hb504"]
 [ext_resource type="Shader" uid="uid://deyqdio76qmdu" path="res://assets/viruse_meshes/virus.gdshader" id="6_u5opy"]
 [ext_resource type="ArrayMesh" uid="uid://bl8krj02o3d40" path="res://assets/viruse_meshes/ico_sphere_x1.res" id="7_u5opy"]
+[ext_resource type="PackedScene" uid="uid://53gkgt0tkppt" path="res://ui/play_hints.tscn" id="8_ee6o4"]
 [ext_resource type="AudioStream" uid="uid://d2fqkx7g1qe7e" path="res://assets/music/Untitled.mp3" id="9_l8g03"]
-
-[sub_resource type="LabelSettings" id="LabelSettings_vsp63"]
-font = ExtResource("3_qf6n1")
-font_size = 64
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4fuuu"]
 sky_top_color = Color(0.1507276, 0.36575258, 1, 1)
@@ -80,25 +79,7 @@ process_thread_group_order = 0
 process_thread_messages = 0
 script = ExtResource("1_dxrkv")
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -136.0
-offset_top = -128.0
-grow_horizontal = 0
-grow_vertical = 0
-size_flags_horizontal = 8
-size_flags_vertical = 8
-theme_override_constants/margin_right = 64
-theme_override_constants/margin_bottom = 64
-
-[node name="SpeedLabel" type="Label" parent="MarginContainer"]
-layout_mode = 2
-text = "X2"
-label_settings = SubResource("LabelSettings_vsp63")
+[node name="SpeedLabel" parent="." instance=ExtResource("2_hb504")]
 
 [node name="MarginContainer2" type="MarginContainer" parent="."]
 process_thread_group = 1
@@ -115,22 +96,12 @@ theme_override_constants/margin_bottom = 32
 layout_mode = 2
 text = "INDEX:QWQ"
 
-[node name="Intro" parent="." instance=ExtResource("2_3vho3")]
+[node name="InitHints" parent="." instance=ExtResource("4_b686c")]
+script = ExtResource("5_hb504")
 
-[node name="PlayHints" type="Control" parent="."]
-visible = false
-layout_mode = 3
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = -20.0
-offset_right = 20.0
-offset_bottom = 20.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="PlayHints" parent="." instance=ExtResource("8_ee6o4")]
+
+[node name="Intro" parent="." instance=ExtResource("2_3vho3")]
 
 [node name="SoundEffects" parent="." instance=ExtResource("2_j8tme")]
 
@@ -223,5 +194,10 @@ multimesh = SubResource("MultiMesh_l8g03")
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("9_l8g03")
 autoplay = true
+
+[connection signal="hints_hidden" from="InitHints" to="SpeedLabel" method="fade_in"]
+[connection signal="ball_size_updated" from="Camera" to="PlayHints" method="update_radius"]
+[connection signal="ray_collision_lost" from="Camera" to="PlayHints" method="hide_immediately"]
+[connection signal="ray_collision_simple" from="Camera" to="PlayHints" method="show_immediately"]
 
 [editable path="Intro"]

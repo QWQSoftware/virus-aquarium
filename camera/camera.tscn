@@ -26,7 +26,7 @@ void fragment() {
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_gsf7k"]
 render_priority = 0
 shader = SubResource("Shader_lw1ob")
-shader_parameter/color = Color(0, 0, 0, 0.25882354)
+shader_parameter/color = Color(0, 0, 0, 0.18431373)
 
 [sub_resource type="SphereMesh" id="SphereMesh_0lfnk"]
 material = SubResource("ShaderMaterial_gsf7k")
