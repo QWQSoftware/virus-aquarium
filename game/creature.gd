@@ -567,6 +567,10 @@ func attach_to_surface_point(point_id: int) -> void:
 	self.global_transform.origin = self.position
 	if point_id < world_surface_point_is_attached.size():
 		world_surface_point_is_attached[point_id] = true
+
+	# Ensure the global/static world positions array stays in sync for UI and spatial queries
+	if self.index >= 0 and self.index < creatures_world_positions.size():
+		creatures_world_positions[self.index] = self.position
 	
 	# Note: attachments 列表用于记录生物可以附着到的其他生物，
 	# 不应该包含当前附着的表面点，避免在 dispose() 时重复释放
@@ -848,7 +852,7 @@ func do_plant_reproduce(_delta: float) -> void:
 	# cache squared radii to avoid sqrt in distance_to
 	var interact_range_sq: float = interact_range_m * interact_range_m
 	var selfrep_radius: float = 2.0
-	var selfrep_radius_sq: float = selfrep_radius * selfrep_radius
+	var _selfrep_radius_sq: float = selfrep_radius * selfrep_radius
 
 	# 如果已经处于繁殖状态，根据当前模式推进进度并在完成时生成后代
 	if is_reproducing:
