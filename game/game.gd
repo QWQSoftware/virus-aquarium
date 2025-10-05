@@ -395,6 +395,36 @@ func _input(event: InputEvent) -> void:
 		else:
 			print("[INPUT] No suitable attachment points found in ball range for pasting")
 		return
+	
+	# 移除功能：删除球体范围内的所有生物
+	if(event.is_action_pressed("remove")):
+		var target_range = camera.BallRadius
+		var pos = camera.BallRangeMesh.global_transform.origin
+		var removed_count = 0
+		var creatures_to_remove: Array = []
+		
+		# 先收集需要移除的生物，避免在迭代过程中修改数组
+		for creature in Creature.creatures:
+			if creature == null or not creature.is_alive:
+				continue
+				
+			# 检查生物是否在目标范围内
+			if creature.position.distance_to(pos) <= target_range:
+				creatures_to_remove.append(creature)
+		
+		# 移除收集到的生物
+		for creature in creatures_to_remove:
+			creature.is_alive = false  # 标记为死亡，让cleanup_dead()处理
+			removed_count += 1
+		
+		# 立即清理死亡的生物
+		Creature.cleanup_dead()
+		
+		if removed_count > 0:
+			print("[INPUT] Removed %d creatures in ball range" % removed_count)
+		else:
+			print("[INPUT] No creatures found in ball range to remove")
+		return
 
 func _physics_process(delta: float) -> void:
 	# 获取实际的时间步长（考虑速度倍率和暂停状态）
