@@ -238,7 +238,7 @@ func _ready() -> void:
 	
 	# 初始化速度标签
 	if speed_label:
-		speed_label.text = "X" + String.num(speed_radio)
+		speed_label.text = "SPD: X" + String.num(speed_radio)
 	
 	return
 

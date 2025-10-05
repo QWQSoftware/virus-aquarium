@@ -200,4 +200,5 @@ autoplay = true
 [connection signal="ray_collision_lost" from="Camera" to="PlayHints" method="hide_immediately"]
 [connection signal="ray_collision_simple" from="Camera" to="PlayHints" method="show_immediately"]
 
+[editable path="SpeedLabel"]
 [editable path="Intro"]

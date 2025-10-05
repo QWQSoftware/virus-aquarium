@@ -47,5 +47,5 @@ texture = ExtResource("4_j8he1")
 
 [node name="SpeedLabel" type="Label" parent="HBoxContainer"]
 layout_mode = 2
-text = "X2"
+text = "SPD: X2"
 label_settings = SubResource("LabelSettings_vsp63")
