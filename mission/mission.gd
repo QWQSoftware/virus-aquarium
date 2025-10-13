@@ -127,10 +127,6 @@ func _play_first_available_sound(node_names: Array) -> void:
 			return
 
 func _process(delta: float) -> void:
-	# 检测ESC键跳过任务
-	if Input.is_action_just_pressed("skip_mission"):  # ESC键
-		_handle_skip_input()
-	
 	# 更新跳过按钮冷却
 	if skip_cooldown_timer > 0.0:
 		skip_cooldown_timer -= delta
@@ -297,8 +293,8 @@ func _update_mission_display() -> void:
 	display_text += "%s\n" % progress_bar
 	display_text += "%.1f%% Complete\n\n" % progress_percent
 	
-	# 添加分隔线
-	display_text += "─────────────────────\n"
+	# 添加分隔线（ASCII）
+	display_text += "---------------------\n"
 	
 	# 添加游戏状态信息
 	display_text += _get_game_status_text()
@@ -314,9 +310,9 @@ func _create_progress_bar(percent: float) -> String:
 	bar += "["
 	for i in range(bar_length):
 		if i < filled_length:
-			bar += "■"
+			bar += "#"  # ASCII filled
 		else:
-			bar += "□"
+			bar += "-"  # ASCII empty
 	bar += "]"
 	
 	return bar
@@ -346,10 +342,10 @@ func _get_game_status_text() -> String:
 	if game_node.has_method("get_current_average_creature_size"):
 		avg_size = game_node.get_current_average_creature_size()
 	
-	status_text += "🦠 Creatures: %d\n" % creature_count
-	# status_text += "⭐ Viruses: %d\n" % plant_count
-	status_text += "📏 Max Size: %.2fm\n" % max_size
-	status_text += "📊 Avg Size: %.2fm" % avg_size
+	status_text += "Creatures: %d\n" % creature_count
+	# status_text += "Viruses: %d\n" % plant_count
+	status_text += "Max Size: %.2fm\n" % max_size
+	status_text += "Avg Size: %.2fm" % avg_size
 	
 	return status_text
 
@@ -367,9 +363,9 @@ func _complete_current_mission() -> void:
 
 	# 显示完成信息
 	var completion_text = ""
-	completion_text += "✅ MISSION COMPLETE! ✅\n\n"
+	completion_text += "MISSION COMPLETE!\n\n"
 	completion_text += "Accomplished: %s\n\n" % current_mission.description
-	completion_text += "🎉 %s 🎉" % current_mission.reward_text
+	completion_text += "Reward: %s" % current_mission.reward_text
 
 	mission_label.text = completion_text
 
@@ -388,7 +384,7 @@ func _skip_current_mission() -> void:
 	
 	# 显示跳过信息
 	var skip_text = ""
-	skip_text += "MISSION SKIPPED!\n\n"
+	skip_text += "MISSION SKIPPED\n\n"
 	skip_text += "Skipped: %s\n" % current_mission.description
 	skip_text += "Reason: User pressed ESC\n\n"
 	skip_text += "Loading next mission..."
@@ -402,7 +398,7 @@ func _skip_current_mission() -> void:
 	_start_next_mission()
 
 func _handle_skip_input() -> void:
-	"""处理ESC键跳过任务"""
+	"""处理Ctrl键跳过任务"""
 	print("[MISSION] ESC key pressed for skip!")
 	print("[MISSION] Current cooldown timer: %.1f" % skip_cooldown_timer)
 	print("[MISSION] Current mission exists: ", current_mission != null)

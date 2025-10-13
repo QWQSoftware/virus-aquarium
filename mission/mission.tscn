@@ -2,8 +2,8 @@
 
 [ext_resource type="FontFile" uid="uid://bvkp8wfi2o61l" path="res://assets/BoldPixels/BoldPixels.ttf" id="1_2sckc"]
 [ext_resource type="Script" uid="uid://bbbe67q2lbogo" path="res://mission/mission.gd" id="1_ugvls"]
-[ext_resource type="Texture2D" uid="uid://bsxkoy1tp6vud" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Default/keyboard_escape.png" id="3_guje3"]
 [ext_resource type="AudioStream" uid="uid://dyflojkf0x2a3" path="res://assets/kenney_interface-sounds/Audio/confirmation_001.ogg" id="3_rkvmn"]
+[ext_resource type="Texture2D" uid="uid://wiljpbxvbu82" path="res://assets/kenney_input-prompts_1.4/Keyboard & Mouse/Default/keyboard_ctrl.png" id="3_sjrmx"]
 [ext_resource type="AudioStream" uid="uid://r3kigitdu4hp" path="res://assets/kenney_interface-sounds/Audio/close_002.ogg" id="5_sjrmx"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_ugvls"]
@@ -187,7 +187,7 @@ label_settings = SubResource("LabelSettings_sjrmx")
 
 [node name="TextureRect3" type="TextureRect" parent="VBoxContainer2/MarginContainer3/HBoxContainer"]
 layout_mode = 2
-texture = ExtResource("3_guje3")
+texture = ExtResource("3_sjrmx")
 
 [node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
 stream = ExtResource("3_rkvmn")

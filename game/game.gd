@@ -555,14 +555,17 @@ func _input(event: InputEvent) -> void:
 			else:
 				print("[MISSION DEBUG] No active mission")
 		
-		# ESC - 跳过当前任务；Shift+ESC 重置任务系统
+		# Shift+ESC 重置任务系统
 		if event.is_action_pressed("ui_cancel"):  # Escape键
 			if Input.is_key_pressed(KEY_SHIFT):
 				mission.reset_mission_system()
 				print("[MISSION DEBUG] Mission system reset")
-			elif mission.can_skip_mission():
+
+		# Ctrl 跳过当前任务
+		if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_CTRL:
+			if mission.can_skip_mission():
 				mission.skip_current_mission()
-				print("[MISSION DEBUG] Mission skipped via ESC")
+				print("[MISSION DEBUG] Mission skipped via Ctrl")
 
 func _physics_process(delta: float) -> void:
 	# 获取实际的时间步长（考虑速度倍率和暂停状态）
